@@ -1,0 +1,296 @@
+{% extends "base.html" %}
+{% load productos_tags %}
+
+{% block title %}Catálogo de Tecnología y Reservas | TecnoReserva{% endblock %}
+
+{% block content %}
+<div class="container">
+
+    <!-- Hero / Encabezado de Catálogo -->
+    <div class="hero-catalogo">
+        <div class="row align-items-center">
+            <div class="col-lg-8">
+                <span class="badge bg-primary px-3 py-2 rounded-pill fw-semibold mb-2">
+                    <i class="bi bi-tag-fill me-1"></i>Sprint 1 • HU 1: Catálogo y Evaluación de Anticipos
+                </span>
+                <h1 class="fw-bolder display-6 text-white mb-2">Catálogo de Equipos y Reservas</h1>
+                <p class="text-white-50 lead fs-6 mb-0">
+                    Evalúa especificaciones técnicas, precio total y el <strong>anticipo mínimo requerido</strong> para apartar tu producto antes de que se agote.
+                </p>
+            </div>
+            <div class="col-lg-4 text-lg-end mt-3 mt-lg-0">
+                <div class="d-inline-block bg-white bg-opacity-10 rounded-4 p-3 border border-white border-opacity-10 text-start">
+                    <div class="small text-white-50"><i class="bi bi-info-circle me-1"></i>Regla de Negocio:</div>
+                    <div class="fw-bold text-white small">Reserva con anticipo, saldo en tienda</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Columna de Filtros (Sidebar) -->
+        <aside class="col-lg-3">
+            <div class="filter-card mb-4">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="fw-bold mb-0">
+                        <i class="bi bi-funnel-fill text-primary me-1"></i>Filtros
+                    </h5>
+                    {% if categoria_slug or marca_slug or query %}
+                        <a href="{% url 'productos:catalogo' %}" class="btn btn-sm btn-outline-danger py-0 px-2 small">
+                            <i class="bi bi-x-circle me-1"></i>Limpiar
+                        </a>
+                    {% endif %}
+                </div>
+
+                <!-- Filtro por Categorías -->
+                <div class="mb-4">
+                    <div class="filter-title">
+                        <span><i class="bi bi-folder2-open me-1"></i>Categorías</span>
+                    </div>
+                    <ul class="filter-list">
+                        <li>
+                            <a href="?{% if marca_slug %}marca={{ marca_slug }}&{% endif %}{% if query %}q={{ query }}&{% endif %}{% if orden %}orden={{ orden }}{% endif %}"
+                               class="filter-item-link {% if not categoria_slug %}active{% endif %}">
+                                <span><i class="bi bi-grid-fill me-2"></i>Todas las categorías</span>
+                            </a>
+                        </li>
+                        {% for cat in categorias %}
+                            <li>
+                                <a href="?categoria={{ cat.slug }}{% if marca_slug %}&marca={{ marca_slug }}{% endif %}{% if query %}&q={{ query }}{% endif %}{% if orden %}&orden={{ orden }}{% endif %}"
+                                   class="filter-item-link {% if categoria_slug == cat.slug %}active{% endif %}">
+                                    <span>
+                                        <i class="bi {{ cat.icono|default:'bi-chevron-right' }} me-2"></i>{{ cat.nombre }}
+                                    </span>
+                                    <span class="badge-count">{{ cat.total }}</span>
+                                </a>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+
+                <hr class="text-secondary my-3">
+
+                <!-- Filtro por Marcas -->
+                <div class="mb-3">
+                    <div class="filter-title">
+                        <span><i class="bi bi-award me-1"></i>Marcas</span>
+                    </div>
+                    <ul class="filter-list">
+                        <li>
+                            <a href="?{% if categoria_slug %}categoria={{ categoria_slug }}&{% endif %}{% if query %}q={{ query }}&{% endif %}{% if orden %}orden={{ orden }}{% endif %}"
+                               class="filter-item-link {% if not marca_slug %}active{% endif %}">
+                                <span><i class="bi bi-check-all me-2"></i>Todas las marcas</span>
+                            </a>
+                        </li>
+                        {% for m in marcas %}
+                            <li>
+                                <a href="?marca={{ m.slug }}{% if categoria_slug %}&categoria={{ categoria_slug }}{% endif %}{% if query %}&q={{ query }}{% endif %}{% if orden %}&orden={{ orden }}{% endif %}"
+                                   class="filter-item-link {% if marca_slug == m.slug %}active{% endif %}">
+                                    <span>{{ m.nombre }}</span>
+                                    <span class="badge-count">{{ m.total }}</span>
+                                </a>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+
+                <hr class="text-secondary my-3">
+
+                <!-- Banner Informativo en Sidebar -->
+                <div class="p-3 bg-primary-subtle rounded-3 border border-primary-subtle small">
+                    <div class="fw-bold text-primary mb-1">
+                        <i class="bi bi-cash-coin me-1"></i>¿Qué es el anticipo?
+                    </div>
+                    <p class="mb-0 text-dark">
+                        Es el monto mínimo necesario para garantizar el apartado de tu producto. El saldo restante lo pagas físicamente en tienda al retirar.
+                    </p>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Columna Principal: Resultados y Productos -->
+        <section class="col-lg-9">
+            <!-- Barra Superior de Control de Catálogo -->
+            <div class="d-flex flex-wrap justify-content-between align-items-center bg-white p-3 rounded-4 border mb-4 gap-3">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="fw-bold text-dark">{{ total_resultados }}</span>
+                    <span class="text-muted small">producto{{ total_resultados|pluralize:"s" }} encontrado{{ total_resultados|pluralize:"s" }}</span>
+
+                    <!-- Filtros activos tipo chips -->
+                    {% if categoria_actual %}
+                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle">
+                            Cat: {{ categoria_actual.nombre }}
+                            <a href="?{% if marca_slug %}marca={{ marca_slug }}&{% endif %}{% if query %}q={{ query }}&{% endif %}" class="text-primary ms-1"><i class="bi bi-x"></i></a>
+                        </span>
+                    {% endif %}
+                    {% if marca_actual %}
+                        <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle">
+                            Marca: {{ marca_actual.nombre }}
+                            <a href="?{% if categoria_slug %}categoria={{ categoria_slug }}&{% endif %}{% if query %}q={{ query }}&{% endif %}" class="text-info-emphasis ms-1"><i class="bi bi-x"></i></a>
+                        </span>
+                    {% endif %}
+                    {% if query %}
+                        <span class="badge bg-secondary-subtle text-secondary-emphasis">
+                            "{{ query }}"
+                            <a href="?{% if categoria_slug %}categoria={{ categoria_slug }}&{% endif %}{% if marca_slug %}marca={{ marca_slug }}&{% endif %}" class="text-secondary ms-1"><i class="bi bi-x"></i></a>
+                        </span>
+                    {% endif %}
+                </div>
+
+                <!-- Selector de Ordenamiento -->
+                <form method="GET" class="d-flex align-items-center gap-2">
+                    {% if categoria_slug %}<input type="hidden" name="categoria" value="{{ categoria_slug }}">{% endif %}
+                    {% if marca_slug %}<input type="hidden" name="marca" value="{{ marca_slug }}">{% endif %}
+                    {% if query %}<input type="hidden" name="q" value="{{ query }}">{% endif %}
+                    <label class="small text-muted text-nowrap" for="ordenSelect">Ordenar por:</label>
+                    <select name="orden" id="ordenSelect" class="form-select form-select-sm" onchange="this.form.submit()">
+                        <option value="recientes" {% if orden == 'recientes' %}selected{% endif %}>Destacados y Recientes</option>
+                        <option value="precio_asc" {% if orden == 'precio_asc' %}selected{% endif %}>Precio: Menor a Mayor</option>
+                        <option value="precio_desc" {% if orden == 'precio_desc' %}selected{% endif %}>Precio: Mayor a Menor</option>
+                        <option value="nombre" {% if orden == 'nombre' %}selected{% endif %}>Nombre A-Z</option>
+                    </select>
+                </form>
+            </div>
+
+            <!-- Grilla de Productos -->
+            {% if productos %}
+                <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4">
+                    {% for p in productos %}
+                        <div class="col">
+                            <article class="product-card h-100">
+                                <!-- Contenedor de Imagen -->
+                                <div class="product-image-container">
+                                    <!-- Badge SKU -->
+                                    <span class="badge-sku" title="Código de Inventario">
+                                        <i class="bi bi-upc-scan me-1"></i>{{ p.sku }}
+                                    </span>
+
+                                    {% if p.destacado %}
+                                        <span class="badge-destacado">
+                                            <i class="bi bi-star-fill me-1"></i>Top
+                                        </span>
+                                    {% endif %}
+
+                                    {% if p.url_foto %}
+                                        <img src="{{ p.url_foto }}" alt="{{ p.nombre }}" loading="lazy">
+                                    {% else %}
+                                        <!-- Placeholder SVG Atractivo -->
+                                        <div class="text-center text-muted">
+                                            <i class="bi bi-device-ssd fs-1 text-secondary opacity-50"></i>
+                                            <div class="small mt-1 text-secondary">Foto de catálogo</div>
+                                        </div>
+                                    {% endif %}
+                                </div>
+
+                                <!-- Cuerpo de la Tarjeta -->
+                                <div class="product-body">
+                                    <!-- Marca y Categoría -->
+                                    <div class="product-meta">
+                                        <span class="badge-brand">{{ p.marca.nombre }}</span>
+                                        <span class="badge-cat"><i class="bi bi-tag me-1"></i>{{ p.categoria.nombre }}</span>
+                                    </div>
+
+                                    <!-- Nombre / Título -->
+                                    <h2 class="product-title" title="{{ p.nombre }}">
+                                        <a href="{% url 'productos:detalle' p.slug %}" class="text-decoration-none text-dark">
+                                            {{ p.nombre }}
+                                        </a>
+                                    </h2>
+
+                                    <!-- Resumen de Ficha Técnica -->
+                                    <p class="product-specs-snippet">
+                                        {% if p.descripcion_corta %}
+                                            {{ p.descripcion_corta|truncatechars:95 }}
+                                        {% else %}
+                                            {{ p.ficha_tecnica|truncatechars:95 }}
+                                        {% endif %}
+                                    </p>
+
+                                    <!-- Caja de Precio y Anticipo (Requisito clave HU 1) -->
+                                    <div class="pricing-reservation-box">
+                                        <div class="d-flex justify-content-between align-items-baseline">
+                                            <span class="price-total-label">Precio Total:</span>
+                                            <span class="price-total-value">{{ p.precio|moneda }}</span>
+                                        </div>
+
+                                        <!-- Anticipo Requerido para Evaluar Reserva -->
+                                        <div class="anticipo-highlight">
+                                            <span class="anticipo-label">
+                                                <i class="bi bi-bookmark-check-fill me-1"></i>Anticipo para Apartar:
+                                            </span>
+                                            <span class="anticipo-value">{{ p.anticipo_requerido|moneda }}</span>
+                                        </div>
+
+                                        <!-- Saldo pendiente a pagar en tienda -->
+                                        <div class="d-flex justify-content-between align-items-center saldo-tienda-note">
+                                            <span>Saldo al retirar en tienda:</span>
+                                            <span class="fw-semibold text-dark">{{ p.saldo_en_tienda|moneda }}</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Botón de Acción -->
+                                    <a href="{% url 'productos:detalle' p.slug %}" class="btn btn-outline-primary w-100 fw-semibold rounded-3 py-2 mt-auto">
+                                        <i class="bi bi-card-text me-1"></i>Ver Ficha y Evaluar Reserva
+                                    </a>
+                                </div>
+                            </article>
+                        </div>
+                    {% endfor %}
+                </div>
+
+                <!-- Paginación -->
+                {% if page_obj.has_other_pages %}
+                    <nav class="mt-5" aria-label="Paginación de productos">
+                        <ul class="pagination justify-content-center">
+                            {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if query_string %}&{{ query_string }}{% endif %}">
+                                        <i class="bi bi-chevron-left me-1"></i>Anterior
+                                    </a>
+                                </li>
+                            {% else %}
+                                <li class="page-item disabled"><span class="page-link">Anterior</span></li>
+                            {% endif %}
+
+                            {% for num in page_obj.paginator.page_range %}
+                                {% if page_obj.number == num %}
+                                    <li class="page-item active" aria-current="page"><span class="page-link">{{ num }}</span></li>
+                                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ num }}{% if query_string %}&{{ query_string }}{% endif %}">{{ num }}</a>
+                                    </li>
+                                {% endif %}
+                            {% endfor %}
+
+                            {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if query_string %}&{{ query_string }}{% endif %}">
+                                        Siguiente<i class="bi bi-chevron-right ms-1"></i>
+                                    </a>
+                                </li>
+                            {% else %}
+                                <li class="page-item disabled"><span class="page-link">Siguiente</span></li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                {% endif %}
+
+            {% else %}
+                <!-- Estado Vacío -->
+                <div class="bg-white rounded-4 border p-5 text-center my-4">
+                    <div class="display-3 text-muted mb-3">
+                        <i class="bi bi-search"></i>
+                    </div>
+                    <h4 class="fw-bold">No se encontraron productos con estos criterios</h4>
+                    <p class="text-muted mb-4">
+                        Prueba seleccionando otra marca o categoría, o borra los términos de búsqueda.
+                    </p>
+                    <a href="{% url 'productos:catalogo' %}" class="btn btn-primary px-4 py-2 rounded-pill fw-semibold">
+                        <i class="bi bi-arrow-clockwise me-1"></i>Restablecer Todos los Filtros
+                    </a>
+                </div>
+            {% endif %}
+        </section>
+    </div>
+</div>
+{% endblock %}

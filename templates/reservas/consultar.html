@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block title %}Consultar Reserva | TecnoReserva{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-7 col-lg-6">
+            <div class="bg-white p-4 p-md-5 rounded-4 border shadow-sm text-center">
+                <div class="badge bg-primary-subtle text-primary p-3 rounded-circle mb-3">
+                    <i class="bi bi-search fs-2"></i>
+                </div>
+                <h2 class="fw-bold mb-2">Consultar Estado de Reserva</h2>
+                <p class="text-muted small mb-4">
+                    Ingresa el código único que recibiste al momento de solicitar tu apartado (ej. <code>RES-2026-X8K29</code>).
+                </p>
+
+                {% if error %}
+                    <div class="alert alert-danger rounded-3 small text-start">
+                        <i class="bi bi-exclamation-circle-fill me-2"></i>{{ error }}
+                    </div>
+                {% endif %}
+
+                <form method="GET" action="{% url 'reservas:consultar' %}">
+                    <div class="mb-3">
+                        <input type="text" name="codigo" class="form-control form-control-lg text-center font-monospace fw-bold" placeholder="RES-2026-XXXXX" value="{{ codigo_busqueda|default:'' }}" required autofocus>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-lg w-100 py-3 rounded-3 fw-bold shadow-sm">
+                        <i class="bi bi-arrow-right-circle me-1"></i>Consultar Reserva
+                    </button>
+                </form>
+
+                <div class="mt-4 pt-3 border-top small text-muted">
+                    ¿Aún no has solicitado una reserva? <a href="{% url 'productos:catalogo' %}" class="text-primary text-decoration-none fw-semibold">Explora nuestro catálogo</a>.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

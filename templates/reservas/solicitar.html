@@ -1,0 +1,304 @@
+{% extends "base.html" %}
+{% load productos_tags %}
+
+{% block title %}Solicitar Reserva de Cupo | {{ producto.nombre }} | TecnoReserva{% endblock %}
+
+{% block content %}
+<div class="container">
+
+    <!-- Migas de Pan -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb bg-white p-3 rounded-4 border small">
+            <li class="breadcrumb-item"><a href="{% url 'productos:catalogo' %}" class="text-decoration-none"><i class="bi bi-house-door me-1"></i>Inicio</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'productos:detalle' producto.slug %}" class="text-decoration-none">{{ producto.nombre|truncatechars:35 }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Solicitar Reserva (Apartar Cupo)</li>
+        </ol>
+    </nav>
+
+    <!-- Encabezado de la Solicitud -->
+    <div class="bg-white p-4 rounded-4 border shadow-sm mb-4">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+            <div>
+                <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle fw-semibold px-3 py-2 rounded-pill mb-2">
+                    <i class="bi bi-bookmark-plus-fill me-1"></i>Sprint 1 • HU 2: Solicitud de Reserva y Cupo en Lote
+                </span>
+                <h1 class="h3 fw-bold mb-1">Solicitud de Reserva por Adelantado</h1>
+                <p class="text-muted small mb-0">
+                    Completa tus datos para apartar tu cupo en el lote. La reserva se creará en estado <strong>Pendiente de Pago</strong>.
+                </p>
+            </div>
+            <div class="text-end">
+                <span class="badge bg-success-subtle text-success fs-6 border border-success-subtle px-3 py-2 rounded-3">
+                    <i class="bi bi-box-seam me-1"></i>{{ producto.stock_disponible }} cupos disponibles en este lote
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Columna Izquierda: Formulario de Datos y Cantidad -->
+        <div class="col-lg-7">
+            <div class="bg-white p-4 p-md-5 rounded-4 border shadow-sm">
+                <h4 class="fw-bold mb-3 text-dark">
+                    <i class="bi bi-person-lines-fill text-primary me-2"></i>1. Datos para la Reserva y Asignación de Cupo
+                </h4>
+                <p class="text-muted small mb-4">
+                    Estos datos se asociarán a tu comprobante de anticipo y se requerirán al momento de retirar el producto en tienda física.
+                </p>
+
+                {% if form.errors %}
+                    <div class="alert alert-danger rounded-3 small">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>Por favor corrige los siguientes errores:
+                        <ul class="mb-0 mt-2">
+                            {% for field in form %}
+                                {% for error in field.errors %}
+                                    <li><strong>{{ field.label }}:</strong> {{ error }}</li>
+                                {% endfor %}
+                            {% endfor %}
+                            {% for error in form.non_field_errors %}
+                                <li>{{ error }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                {% endif %}
+
+                <form method="POST" id="formReserva">
+                    {% csrf_token %}
+
+                    <!-- Cantidad a Reservar con Cálculo Dinámico -->
+                    <div class="mb-4 p-3 bg-light rounded-4 border">
+                        <label for="{{ form.cantidad.id_for_label }}" class="form-label fw-bold d-flex justify-content-between align-items-center">
+                            <span><i class="bi bi-layers-fill text-primary me-1"></i>Cantidad de Unidades (Cupos en Lote):</span>
+                            <span class="text-muted small">Máx: {{ producto.stock_disponible }}</span>
+                        </label>
+                        <div class="input-group input-group-lg" style="max-width: 220px;">
+                            <button class="btn btn-outline-secondary" type="button" id="btnRestar">-</button>
+                            {{ form.cantidad }}
+                            <button class="btn btn-outline-secondary" type="button" id="btnSumar">+</button>
+                        </div>
+                        <div class="form-text small mt-2">
+                            Selecciona cuántas unidades deseas apartar. El anticipo se calculará automáticamente.
+                        </div>
+                    </div>
+
+                    <!-- Datos Personales -->
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label for="{{ form.nombre_cliente.id_for_label }}" class="form-label fw-semibold small">
+                                Nombre Completo <span class="text-danger">*</span>
+                            </label>
+                            {{ form.nombre_cliente }}
+                        </div>
+                        <div class="col-md-6">
+                            <label for="{{ form.documento_identidad.id_for_label }}" class="form-label fw-semibold small">
+                                Documento de Identidad (C.I. / DNI / Cédula) <span class="text-danger">*</span>
+                            </label>
+                            {{ form.documento_identidad }}
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label for="{{ form.email_cliente.id_for_label }}" class="form-label fw-semibold small">
+                                Correo Electrónico <span class="text-danger">*</span>
+                            </label>
+                            {{ form.email_cliente }}
+                        </div>
+                        <div class="col-md-6">
+                            <label for="{{ form.telefono_cliente.id_for_label }}" class="form-label fw-semibold small">
+                                Teléfono / WhatsApp <span class="text-danger">*</span>
+                            </label>
+                            {{ form.telefono_cliente }}
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="{{ form.notas.id_for_label }}" class="form-label fw-semibold small">
+                            Observaciones o Notas (Opcional)
+                        </label>
+                        {{ form.notas }}
+                    </div>
+
+                    <!-- Tarjeta de Cálculo de Anticipo (Requisito HU 2: "Calcula anticipo") -->
+                    <div class="p-4 rounded-4 border border-success-subtle bg-success-subtle bg-opacity-25 mb-4">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="fw-bold text-success">
+                                <i class="bi bi-calculator-fill me-1"></i>Cálculo de Reserva y Anticipo:
+                            </span>
+                            <span class="badge bg-success">
+                                Apartas con el {{ producto.porcentaje_anticipo|floatformat }}%
+                            </span>
+                        </div>
+
+                        <div class="row g-3 text-center my-2">
+                            <div class="col-4">
+                                <div class="text-muted small">Precio Total:</div>
+                                <div class="fw-bold fs-5 text-dark" id="displayPrecioTotal">{{ precio_unitario|moneda }}</div>
+                            </div>
+                            <div class="col-4 border-start border-end border-success-subtle">
+                                <div class="text-success fw-bold small">Anticipo Requerido:</div>
+                                <div class="fw-bolder fs-4 text-success" id="displayAnticipo">{{ anticipo_unitario|moneda }}</div>
+                            </div>
+                            <div class="col-4">
+                                <div class="text-muted small">Saldo en Tienda:</div>
+                                <div class="fw-bold fs-5 text-secondary" id="displaySaldo">{{ saldo_unitario|moneda }}</div>
+                            </div>
+                        </div>
+
+                        <div class="small text-muted mt-2">
+                            <i class="bi bi-info-circle me-1"></i>Para confirmar tu reserva, deberás consignar el <strong>anticipo requerido</strong> a una de las cuentas autorizadas.
+                        </div>
+                    </div>
+
+                    <!-- Botón de Envío -->
+                    <button type="submit" class="btn btn-primary btn-lg w-100 py-3 rounded-3 fw-bold shadow-sm">
+                        <i class="bi bi-check-circle-fill me-2"></i>Crear Reserva en Pendiente de Pago
+                    </button>
+                    <div class="text-center mt-2 small text-muted">
+                        Al enviar, se apartará tu cupo temporalmente y se generará tu código de reserva.
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Columna Derecha: Resumen del Producto y Cuentas Bancarias ("Muestra cuentas") -->
+        <div class="col-lg-5">
+            <!-- Tarjeta de Producto -->
+            <div class="bg-white p-4 rounded-4 border shadow-sm mb-4">
+                <h5 class="fw-bold mb-3 text-dark">
+                    <i class="bi bi-laptop text-primary me-2"></i>Producto a Reservar
+                </h5>
+                <div class="d-flex gap-3 align-items-center">
+                    <div style="width: 90px; height: 90px; flex-shrink: 0;" class="bg-light rounded-3 d-flex align-items-center justify-content-center p-2 border">
+                        {% if producto.url_foto %}
+                            <img src="{{ producto.url_foto }}" alt="{{ producto.nombre }}" class="img-fluid" style="max-height: 80px; object-fit: contain;">
+                        {% else %}
+                            <i class="bi bi-device-ssd text-secondary fs-2"></i>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <span class="badge bg-secondary mb-1">SKU: {{ producto.sku }}</span>
+                        <h6 class="fw-bold mb-1 text-dark">{{ producto.nombre }}</h6>
+                        <div class="text-muted small">{{ producto.marca.nombre }} • {{ producto.categoria.nombre }}</div>
+                        <div class="fw-bold text-primary mt-1">{{ producto.precio|moneda }} c/u</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Cuentas Bancarias Autorizadas ("Muestra cuentas") -->
+            <div class="bg-white p-4 rounded-4 border shadow-sm">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="fw-bold mb-0 text-dark">
+                        <i class="bi bi-bank2 text-primary me-2"></i>Cuentas Bancarias Autorizadas
+                    </h5>
+                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle">Oficiales</span>
+                </div>
+                <p class="text-muted small mb-3">
+                    Consigna el valor del anticipo a cualquiera de nuestras cuentas habilitadas para garantizar el apartado de tu cupo:
+                </p>
+
+                {% if cuentas %}
+                    <div class="d-flex flex-column gap-3">
+                        {% for cuenta in cuentas %}
+                            <div class="border rounded-3 p-3 bg-light">
+                                <div class="d-flex justify-content-between align-items-start mb-1">
+                                    <strong class="text-dark">{{ cuenta.banco }}</strong>
+                                    <span class="badge bg-secondary-subtle text-secondary small">{{ cuenta.tipo_cuenta }}</span>
+                                </div>
+                                <div class="d-flex align-items-center justify-content-between my-2 p-2 bg-white rounded border">
+                                    <span class="fw-bold font-monospace text-primary fs-6">{{ cuenta.numero_cuenta }}</span>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" onclick="copiarAlPortapapeles('{{ cuenta.numero_cuenta }}', this)" title="Copiar número de cuenta">
+                                        <i class="bi bi-clipboard me-1"></i>Copiar
+                                    </button>
+                                </div>
+                                <div class="small text-muted">
+                                    <div><strong>Titular:</strong> {{ cuenta.titular }}</div>
+                                    <div><strong>Identificación:</strong> {{ cuenta.documento_titular }}</div>
+                                    {% if cuenta.instrucciones %}
+                                        <div class="text-primary mt-1"><i class="bi bi-info-circle me-1"></i>{{ cuenta.instrucciones }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="alert alert-warning small">
+                        No hay cuentas bancarias registradas actualmente en el sistema.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Variables para cálculo interactivo de anticipo
+    const precioUnitario = {{ producto.precio }};
+    const anticipoUnitario = {{ producto.anticipo_requerido }};
+    const maxStock = {{ producto.stock_disponible }};
+
+    const inputCantidad = document.getElementById('id_cantidad');
+    const btnSumar = document.getElementById('btnSumar');
+    const btnRestar = document.getElementById('btnRestar');
+
+    const displayPrecioTotal = document.getElementById('displayPrecioTotal');
+    const displayAnticipo = document.getElementById('displayAnticipo');
+    const displaySaldo = document.getElementById('displaySaldo');
+
+    function formatearMoneda(val) {
+        return '$' + val.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function recalcularValores() {
+        let cantidad = parseInt(inputCantidad.value) || 1;
+        if (cantidad < 1) cantidad = 1;
+        if (cantidad > maxStock) cantidad = maxStock;
+        inputCantidad.value = cantidad;
+
+        const total = precioUnitario * cantidad;
+        const anticipo = anticipoUnitario * cantidad;
+        const saldo = total - anticipo;
+
+        displayPrecioTotal.textContent = formatearMoneda(total);
+        displayAnticipo.textContent = formatearMoneda(anticipo);
+        displaySaldo.textContent = formatearMoneda(saldo);
+    }
+
+    if (btnSumar && btnRestar && inputCantidad) {
+        btnSumar.addEventListener('click', function() {
+            let actual = parseInt(inputCantidad.value) || 1;
+            if (actual < maxStock) {
+                inputCantidad.value = actual + 1;
+                recalcularValores();
+            }
+        });
+
+        btnRestar.addEventListener('click', function() {
+            let actual = parseInt(inputCantidad.value) || 1;
+            if (actual > 1) {
+                inputCantidad.value = actual - 1;
+                recalcularValores();
+            }
+        });
+
+        inputCantidad.addEventListener('input', recalcularValores);
+        inputCantidad.addEventListener('change', recalcularValores);
+    }
+
+    function copiarAlPortapapeles(texto, btn) {
+        navigator.clipboard.writeText(texto).then(() => {
+            const originalHTML = btn.innerHTML;
+            btn.innerHTML = '<i class="bi bi-check-lg text-success"></i> ¡Copiado!';
+            btn.classList.add('btn-success', 'text-white');
+            btn.classList.remove('btn-outline-secondary');
+            setTimeout(() => {
+                btn.innerHTML = originalHTML;
+                btn.classList.remove('btn-success', 'text-white');
+                btn.classList.add('btn-outline-secondary');
+            }, 2000);
+        });
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,278 @@
+{% extends "base.html" %}
+{% load productos_tags %}
+
+{% block title %}{{ producto.nombre }} | Ficha y Reserva | TecnoReserva{% endblock %}
+
+{% block content %}
+<div class="container">
+
+    <!-- Migas de Pan (Breadcrumbs) -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb bg-white p-3 rounded-4 border small">
+            <li class="breadcrumb-item"><a href="{% url 'productos:catalogo' %}" class="text-decoration-none"><i class="bi bi-house-door me-1"></i>Inicio</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'productos:catalogo' %}?categoria={{ producto.categoria.slug }}" class="text-decoration-none">{{ producto.categoria.nombre }}</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'productos:catalogo' %}?marca={{ producto.marca.slug }}" class="text-decoration-none">{{ producto.marca.nombre }}</a></li>
+            <li class="breadcrumb-item active text-truncate" style="max-width: 320px;" aria-current="page">{{ producto.nombre }}</li>
+        </ol>
+    </nav>
+
+    <div class="row g-4">
+        <!-- Columna Izquierda: Foto y Badges -->
+        <div class="col-lg-6">
+            <div class="detail-gallery-card position-relative mb-4">
+                <!-- Badges sobre la foto -->
+                <div class="position-absolute top-0 start-0 m-3 d-flex flex-column gap-2">
+                    <span class="badge bg-dark text-white px-3 py-2 rounded-3 fs-6">
+                        <i class="bi bi-upc-scan me-1"></i>SKU: {{ producto.sku }}
+                    </span>
+                    <span class="badge bg-primary px-3 py-1 rounded-2">
+                        {{ producto.marca.nombre }}
+                    </span>
+                </div>
+
+                {% if producto.destacado %}
+                    <span class="badge bg-warning text-dark position-absolute top-0 end-0 m-3 px-3 py-2 rounded-3 fw-bold">
+                        <i class="bi bi-star-fill me-1"></i>Destacado
+                    </span>
+                {% endif %}
+
+                {% if producto.url_foto %}
+                    <img src="{{ producto.url_foto }}" alt="{{ producto.nombre }}" class="img-fluid rounded-3">
+                {% else %}
+                    <div class="text-center text-muted py-5">
+                        <i class="bi bi-laptop display-1 text-secondary opacity-50"></i>
+                        <p class="mt-3 text-secondary">Imagen representativa de catálogo</p>
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Ficha Técnica Estructurada -->
+            <div class="bg-white p-4 rounded-4 border shadow-sm">
+                <div class="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2">
+                    <h5 class="fw-bold mb-0 text-dark">
+                        <i class="bi bi-cpu text-primary me-2"></i>Ficha Técnica y Especificaciones
+                    </h5>
+                    <span class="badge bg-light text-secondary border">Detalle del Fabricante</span>
+                </div>
+
+                {% if ficha_items %}
+                    <div class="table-responsive">
+                        <table class="table table-hover specs-table mb-0">
+                            <tbody>
+                                {% for item in ficha_items %}
+                                    <tr>
+                                        <th scope="row" class="text-muted">{{ item.clave }}</th>
+                                        <td class="fw-medium">{{ item.valor }}</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="p-3 bg-light rounded-3 text-muted">
+                        <pre class="mb-0" style="white-space: pre-wrap; font-family: inherit;">{{ producto.ficha_tecnica }}</pre>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Columna Derecha: Información, Evaluación de Reserva y Precios -->
+        <div class="col-lg-6">
+            <div class="bg-white p-4 p-md-5 rounded-4 border shadow-sm mb-4">
+                <!-- Marca y Categoría -->
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <span class="badge bg-indigo-subtle text-primary border border-primary-subtle fw-bold">
+                        {{ producto.marca.nombre }}
+                    </span>
+                    <span class="text-muted small">
+                        <i class="bi bi-folder2 me-1"></i>{{ producto.categoria.nombre }}
+                    </span>
+                    <span class="ms-auto badge bg-success-subtle text-success border border-success-subtle">
+                        <i class="bi bi-check-circle me-1"></i>{{ producto.stock_disponible }} unidades para reserva
+                    </span>
+                </div>
+
+                <!-- Título del Producto -->
+                <h1 class="h2 fw-bold text-dark mb-3">{{ producto.nombre }}</h1>
+
+                <!-- SKU e Identificadores -->
+                <div class="d-flex align-items-center gap-3 p-2 bg-light rounded-3 mb-4 small">
+                    <div>
+                        <strong class="text-muted">SKU de Inventario:</strong>
+                        <span class="badge bg-secondary ms-1">{{ producto.sku }}</span>
+                    </div>
+                    <div class="text-muted">|</div>
+                    <div>
+                        <strong class="text-muted">Garantía:</strong>
+                        <span class="text-dark ms-1">12 Meses en Centro Técnico</span>
+                    </div>
+                </div>
+
+                <!-- Descripción Corta -->
+                {% if producto.descripcion_corta %}
+                    <p class="text-secondary lead fs-6 mb-4">
+                        {{ producto.descripcion_corta }}
+                    </p>
+                {% endif %}
+
+                <!-- Tarjeta de Evaluación de Reserva (Elemento Central de HU 1) -->
+                <div class="reservation-callout-card mb-4">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <span class="text-uppercase fw-bold text-success small">
+                            <i class="bi bi-shield-check me-1"></i>Condiciones de Reserva
+                        </span>
+                        <span class="badge bg-success text-white px-2 py-1">
+                            Aparta con el {{ producto.porcentaje_anticipo|floatformat }}%
+                        </span>
+                    </div>
+
+                    <!-- Comparativa de Precios: Total vs Anticipo vs Saldo -->
+                    <div class="row g-3 align-items-center mb-3">
+                        <div class="col-sm-4">
+                            <div class="text-muted small">Precio Total de Venta:</div>
+                            <div class="fs-4 fw-bold text-dark">{{ producto.precio|moneda }}</div>
+                        </div>
+                        <div class="col-sm-4 border-start border-success-subtle ps-sm-3">
+                            <div class="text-success fw-bold small">Anticipo Requerido:</div>
+                            <div class="fs-3 fw-bolder text-success">{{ producto.anticipo_requerido|moneda }}</div>
+                        </div>
+                        <div class="col-sm-4 border-start border-success-subtle ps-sm-3">
+                            <div class="text-muted small">Saldo a pagar en tienda:</div>
+                            <div class="fs-4 fw-bold text-secondary">{{ producto.saldo_en_tienda|moneda }}</div>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-light border border-success-subtle rounded-3 p-3 mb-3 small text-dark">
+                        <div class="fw-bold text-success mb-1">
+                            <i class="bi bi-info-circle-fill me-1"></i>¿Cómo funciona este apartado?
+                        </div>
+                        Pagas <strong>{{ producto.anticipo_requerido|moneda }}</strong> por transferencia para congelar el stock. Nuestro asesor verifica tu comprobante y el producto queda reservado a tu nombre. Al retirarlo en nuestra tienda física, solo cancelas los <strong>{{ producto.saldo_en_tienda|moneda }}</strong> restantes.
+                    </div>
+
+                    <!-- Botón de Acción para Reserva (HU 2) -->
+                    {% if producto.stock_disponible > 0 %}
+                        <a href="{% url 'reservas:solicitar' producto.slug %}" class="btn btn-success btn-lg w-100 fw-bold py-3 shadow-sm">
+                            <i class="bi bi-bag-check-fill me-2"></i>Apartar Cupo con Anticipo ({{ producto.anticipo_requerido|moneda }})
+                        </a>
+                    {% else %}
+                        <button class="btn btn-secondary btn-lg w-100 fw-bold py-3" disabled>
+                            <i class="bi bi-slash-circle me-2"></i>Sin Cupos Disponibles en este Lote
+                        </button>
+                    {% endif %}
+                </div>
+
+                <!-- Puntos de Confianza -->
+                <div class="row g-2 text-muted small pt-2">
+                    <div class="col-6">
+                        <i class="bi bi-shield-lock-fill text-primary me-1"></i>Inventario verificado
+                    </div>
+                    <div class="col-6">
+                        <i class="bi bi-receipt text-primary me-1"></i>Comprobante oficial
+                    </div>
+                    <div class="col-6">
+                        <i class="bi bi-shop text-primary me-1"></i>Retiro inmediato en tienda
+                    </div>
+                    <div class="col-6">
+                        <i class="bi bi-person-check-fill text-primary me-1"></i>Asesor asignado
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Informativo de Reserva (Sprint 1 Preview) -->
+    <div class="modal fade" id="reservaModal" tabindex="-1" aria-labelledby="reservaModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content rounded-4 border-0 shadow">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-bold" id="reservaModalLabel">
+                        <i class="bi bi-bookmark-plus text-primary me-2"></i>Reserva del Producto
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-toggle="modal" aria-label="Cerrar"></button>
+                </div>
+                <div class="modal-body py-4">
+                    <div class="text-center mb-3">
+                        <div class="badge bg-primary-subtle text-primary p-3 rounded-circle mb-2">
+                            <i class="bi bi-receipt-cutoff fs-2"></i>
+                        </div>
+                        <h5 class="fw-bold mb-1">{{ producto.nombre }}</h5>
+                        <div class="text-muted small">SKU: {{ producto.sku }}</div>
+                    </div>
+
+                    <div class="bg-light p-3 rounded-3 mb-3 small">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span>Precio Total:</span>
+                            <span class="fw-bold">{{ producto.precio|moneda }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-1 text-success fw-bold">
+                            <span>Anticipo a transferir:</span>
+                            <span>{{ producto.anticipo_requerido|moneda }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between text-muted">
+                            <span>Saldo a liquidar en tienda:</span>
+                            <span>{{ producto.saldo_en_tienda|moneda }}</span>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-info border-0 rounded-3 small mb-0">
+                        <strong><i class="bi bi-lightbulb me-1"></i>Siguiente Sprint:</strong>
+                        En la siguiente fase se habilitará el formulario para adjuntar tu comprobante de pago bancario y asignación de código único de reserva.
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Entendido</button>
+                    <a href="{% url 'productos:catalogo' %}" class="btn btn-primary rounded-pill px-4">Volver al Catálogo</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Productos Relacionados -->
+    {% if relacionados %}
+        <section class="my-5 pt-3">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h4 class="fw-bold mb-0">
+                    <i class="bi bi-grid-3x3-gap-fill text-primary me-2"></i>Productos Relacionados
+                </h4>
+                <a href="{% url 'productos:catalogo' %}?categoria={{ producto.categoria.slug }}" class="text-decoration-none fw-semibold small">
+                    Ver más de {{ producto.categoria.nombre }} <i class="bi bi-arrow-right"></i>
+                </a>
+            </div>
+            <div class="row row-cols-1 row-cols-md-2 row-cols-lg-4 g-4">
+                {% for rel in relacionados %}
+                    <div class="col">
+                        <div class="product-card h-100">
+                            <div class="product-image-container" style="height: 180px;">
+                                <span class="badge-sku small">{{ rel.sku }}</span>
+                                {% if rel.url_foto %}
+                                    <img src="{{ rel.url_foto }}" alt="{{ rel.nombre }}" loading="lazy">
+                                {% else %}
+                                    <i class="bi bi-laptop fs-1 text-secondary opacity-50"></i>
+                                {% endif %}
+                            </div>
+                            <div class="product-body p-3">
+                                <span class="badge-brand mb-1">{{ rel.marca.nombre }}</span>
+                                <h6 class="fw-bold mb-2 text-truncate" title="{{ rel.nombre }}">{{ rel.nombre }}</h6>
+                                <div class="pricing-reservation-box p-2 mb-2">
+                                    <div class="d-flex justify-content-between small">
+                                        <span class="text-muted">Total:</span>
+                                        <span class="fw-bold">{{ rel.precio|moneda }}</span>
+                                    </div>
+                                    <div class="anticipo-highlight py-1 px-2 mt-1">
+                                        <span class="small fw-bold text-success">Anticipo:</span>
+                                        <span class="small fw-bolder text-success">{{ rel.anticipo_requerido|moneda }}</span>
+                                    </div>
+                                </div>
+                                <a href="{% url 'productos:detalle' rel.slug %}" class="btn btn-sm btn-outline-primary w-100 rounded-2 mt-auto">
+                                    Evaluar
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </section>
+    {% endif %}
+
+</div>
+{% endblock %}
