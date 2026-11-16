@@ -245,7 +245,7 @@ def rechazar_reserva_view(request, codigo):
     if request.method == 'POST':
         motivo = request.POST.get('motivo_rechazo', '').strip()
         if not motivo:
-            motivo = "Comprobante no válido o valor no acreditado en las cuentas bancarias de la tienda."
+            motivo = "Comprobante no valido o valor no acreditado en las cuentas bancarias de la tienda."
 
         reserva.rechazar_abono(motivo=motivo, usuario=request.user)
         messages.warning(
