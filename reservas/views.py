@@ -250,6 +250,6 @@ def rechazar_reserva_view(request, codigo):
         reserva.rechazar_abono(motivo=motivo, usuario=request.user)
         messages.warning(
             request,
-            f"⚠ Reserva {reserva.codigo} rechazada. Se registró el motivo: '{motivo}' para notificación al cliente."
+            f"⚠ Reserva {reserva.codigo} rechazada. Se registro el motivo: '{motivo}' para notificación al cliente."
         )
     return redirect('reservas:panel_financiero')
