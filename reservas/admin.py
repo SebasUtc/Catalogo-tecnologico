@@ -38,12 +38,21 @@ class ReservaAdmin(admin.ModelAdmin):
         "producto__nombre",
         "producto__sku"
     )
-    readonly_fields = ("codigo", "fecha_creacion", "fecha_actualizacion", "vista_comprobante")
+    readonly_fields = ("codigo", "fecha_creacion", "fecha_actualizacion", "vista_comprobante", "fecha_validacion", "validado_por")
     list_editable = ("estado",)
+    actions = ["aprobar_reservas_seleccionadas", "rechazar_por_monto_incorrecto", "rechazar_por_ilegible"]
 
     fieldsets = (
         ("Identificación de Reserva", {
             "fields": ("codigo", "estado", "fecha_creacion", "fecha_limite_pago")
+        }),
+        ("Validación Financiera (HU 4)", {
+            "fields": (
+                "validado_por",
+                "fecha_validacion",
+                "motivo_rechazo",
+            ),
+            "description": "Datos de validación del abono registrados por el Gestor Financiero."
         }),
         ("Comprobante de Pago de Anticipo (HU 3)", {
             "fields": (
@@ -107,3 +116,21 @@ class ReservaAdmin(admin.ModelAdmin):
     def saldo_formateado(self, obj):
         return f"${obj.saldo_en_tienda:,.2f}"
     saldo_formateado.short_description = "Saldo Tienda"
+
+    @admin.action(description="✓ Aprobar abono seleccionado (Pasa a Reserva Confirmada)")
+    def aprobar_reservas_seleccionadas(self, request, queryset):
+        for reserva in queryset:
+            reserva.aprobar_abono(usuario=request.user)
+        self.message_user(request, f"{queryset.count()} reserva(s) aprobada(s) con éxito. Estado: Reserva Confirmada.")
+
+    @admin.action(description="⚠ Rechazar por monto no coincidente")
+    def rechazar_por_monto_incorrecto(self, request, queryset):
+        for reserva in queryset:
+            reserva.rechazar_abono("El valor consignado no coincide con el anticipo requerido.", usuario=request.user)
+        self.message_user(request, f"{queryset.count()} reserva(s) rechazada(s) por monto no coincidente.")
+
+    @admin.action(description="⚠ Rechazar por comprobante ilegible")
+    def rechazar_por_ilegible(self, request, queryset):
+        for reserva in queryset:
+            reserva.rechazar_abono("El comprobante adjunto es ilegible o está cortado.", usuario=request.user)
+        self.message_user(request, f"{queryset.count()} reserva(s) rechazada(s) por comprobante ilegible.")

@@ -1,4 +1,5 @@
 from decimal import Decimal
+from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase
 from django.urls import reverse
@@ -8,15 +9,24 @@ from reservas.models import CuentaBancaria, Reserva
 
 class SolicitudReservaTests(TestCase):
     """
-    Suite de pruebas para HU 2 y HU 3:
+    Suite de pruebas para HU 2, HU 3 y HU 4:
     - HU 2: 'Como cliente, quiero solicitar una reserva para apartar cupo en el lote.'
       Criterio: 'Calcula anticipo, muestra cuentas y crea reserva en Pendiente de Pago.'
     - HU 3: 'Como cliente, quiero subir el comprobante de anticipo para registrar el pago.'
       Criterio: 'Permite adjuntar JPG/PNG/PDF. Pasa a Comprobante en Revisión.'
+    - HU 4: 'Como gestor financiero, quiero validar comprobantes para confirmar el abono.'
+      Criterio: 'Panel para aprobar o rechazar con motivo. Pasa a Reserva Confirmada.'
     """
 
     def setUp(self):
         self.client = Client()
+
+        # Usuario gestor financiero
+        self.gestor = User.objects.create_superuser(
+            username='gestor_test',
+            email='gestor@test.com',
+            password='password123'
+        )
 
         self.categoria = Categoria.objects.create(nombre="Laptops", slug="laptops")
         self.marca = Marca.objects.create(nombre="ASUS ROG", slug="asus-rog")
@@ -391,3 +401,140 @@ class SolicitudReservaTests(TestCase):
         self.assertContains(response, "Bancolombia")
         self.assertContains(response, "REF-12345")
         self.assertContains(response, "Ver Imagen Completa")
+
+    # --- PRUEBAS HU 4: PANEL DEL GESTOR FINANCIERO Y VALIDACIÓN DE ABONOS ---
+
+    def test_acceso_panel_financiero_requiere_staff(self):
+        """
+        Verifica que el panel financiero requiera autenticación como personal de la tienda (staff).
+        """
+        # Usuario no autenticado es redirigido a login
+        response = self.client.get(reverse('reservas:panel_financiero'))
+        self.assertEqual(response.status_code, 302)
+
+        # Usuario gestor financiero autenticado accede con éxito (200 OK)
+        self.client.force_login(self.gestor)
+        response_auth = self.client.get(reverse('reservas:panel_financiero'))
+        self.assertEqual(response_auth.status_code, 200)
+        self.assertContains(response_auth, "Validación de Comprobantes y Confirmación de Abonos")
+
+    def test_gestor_aprueba_comprobante_pasa_a_reserva_confirmada(self):
+        """
+        Criterio clave HU 4: 'Panel para aprobar o rechazar con motivo. Pasa a Reserva Confirmada.'
+        Prueba la aprobación del abono.
+        """
+        reserva = Reserva.objects.create(
+            producto=self.producto,
+            cantidad=1,
+            precio_unitario=Decimal("2000.00"),
+            precio_total=Decimal("2000.00"),
+            monto_anticipo=Decimal("400.00"),
+            saldo_en_tienda=Decimal("1600.00"),
+            nombre_cliente="Cliente Por Aprobar",
+            email_cliente="aprobar@test.com",
+            telefono_cliente="777777",
+            documento_identidad="CC 777777",
+            estado=Reserva.ESTADO_COMPROBANTE_REVISION
+        )
+
+        self.client.force_login(self.gestor)
+        response = self.client.post(
+            reverse('reservas:aprobar', kwargs={'codigo': reserva.codigo})
+        )
+
+        self.assertRedirects(response, reverse('reservas:panel_financiero'))
+
+        reserva.refresh_from_db()
+        # Condición: Pasa a Reserva Confirmada
+        self.assertEqual(reserva.estado, Reserva.ESTADO_CONFIRMADA)
+        self.assertEqual(reserva.get_estado_display(), 'Reserva Confirmada')
+        self.assertEqual(reserva.validado_por, self.gestor)
+        self.assertIsNotNone(reserva.fecha_validacion)
+        self.assertEqual(reserva.motivo_rechazo, "")
+
+    def test_gestor_rechaza_comprobante_con_motivo(self):
+        """
+        Criterio clave HU 4: Permite rechazar registrando el motivo.
+        """
+        reserva = Reserva.objects.create(
+            producto=self.producto,
+            cantidad=1,
+            precio_unitario=Decimal("2000.00"),
+            precio_total=Decimal("2000.00"),
+            monto_anticipo=Decimal("400.00"),
+            saldo_en_tienda=Decimal("1600.00"),
+            nombre_cliente="Cliente Por Rechazar",
+            email_cliente="rechazar@test.com",
+            telefono_cliente="888888",
+            documento_identidad="CC 888888",
+            estado=Reserva.ESTADO_COMPROBANTE_REVISION
+        )
+
+        motivo_test = "El valor transferido fue de $200.00 pero el anticipo requerido es de $400.00."
+
+        self.client.force_login(self.gestor)
+        response = self.client.post(
+            reverse('reservas:rechazar', kwargs={'codigo': reserva.codigo}),
+            data={'motivo_rechazo': motivo_test}
+        )
+
+        self.assertRedirects(response, reverse('reservas:panel_financiero'))
+
+        reserva.refresh_from_db()
+        self.assertEqual(reserva.estado, Reserva.ESTADO_RECHAZADA)
+        self.assertEqual(reserva.get_estado_display(), 'Comprobante Rechazado')
+        self.assertEqual(reserva.motivo_rechazo, motivo_test)
+        self.assertEqual(reserva.validado_por, self.gestor)
+        self.assertIsNotNone(reserva.fecha_validacion)
+
+    def test_vista_resumen_cliente_muestra_reserva_confirmada(self):
+        """
+        Verifica que al confirmar la reserva, la vista del cliente muestre el estado 'Reserva Confirmada'
+        con el mensaje de abono validado.
+        """
+        reserva = Reserva.objects.create(
+            producto=self.producto,
+            cantidad=1,
+            precio_unitario=Decimal("2000.00"),
+            precio_total=Decimal("2000.00"),
+            monto_anticipo=Decimal("400.00"),
+            saldo_en_tienda=Decimal("1600.00"),
+            nombre_cliente="Cliente Con Reserva Confirmada",
+            email_cliente="confirmado@test.com",
+            telefono_cliente="999999",
+            documento_identidad="CC 999999",
+            estado=Reserva.ESTADO_CONFIRMADA
+        )
+
+        response = self.client.get(reverse('reservas:resumen', kwargs={'codigo': reserva.codigo}))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Reserva Confirmada")
+        self.assertContains(response, "Tu abono de")
+        self.assertContains(response, "ha sido aprobado y tu cupo en el lote está garantizado")
+
+    def test_vista_resumen_cliente_muestra_motivo_rechazo_y_permite_reenvio(self):
+        """
+        Verifica que si la reserva es rechazada, el cliente vea el motivo exacto y tenga
+        disponible el formulario para adjuntar un nuevo comprobante corregido.
+        """
+        reserva = Reserva.objects.create(
+            producto=self.producto,
+            cantidad=1,
+            precio_unitario=Decimal("2000.00"),
+            precio_total=Decimal("2000.00"),
+            monto_anticipo=Decimal("400.00"),
+            saldo_en_tienda=Decimal("1600.00"),
+            nombre_cliente="Cliente Rechazado",
+            email_cliente="rechazado@test.com",
+            telefono_cliente="101010",
+            documento_identidad="CC 101010",
+            estado=Reserva.ESTADO_RECHAZADA,
+            motivo_rechazo="Comprobante ilegible, no se aprecia la fecha ni la cuenta destino."
+        )
+
+        response = self.client.get(reverse('reservas:resumen', kwargs={'codigo': reserva.codigo}))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Comprobante Rechazado")
+        self.assertContains(response, "Comprobante ilegible, no se aprecia la fecha ni la cuenta destino.")
+        # Debe mostrar el formulario para reenviar comprobante
+        self.assertContains(response, "Subir Nuevo Comprobante Corregido")

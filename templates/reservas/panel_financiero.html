@@ -1,0 +1,408 @@
+{% extends "base.html" %}
+{% load productos_tags %}
+
+{% block title %}Panel del Gestor Financiero | Validación de Abonos | TecnoReserva{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-lg-5">
+
+    <!-- Encabezado del Panel -->
+    <div class="bg-white p-4 rounded-4 border shadow-sm mb-4">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+            <div>
+                <span class="badge bg-primary px-3 py-2 rounded-pill fw-semibold mb-2">
+                    <i class="bi bi-shield-lock-fill me-1"></i>Sprint 1 • HU 4: Panel del Gestor Financiero
+                </span>
+                <h1 class="h3 fw-bold mb-1 text-dark">Validación de Comprobantes y Confirmación de Abonos</h1>
+                <p class="text-muted small mb-0">
+                    Verifica las transferencias bancarias de anticipos para asegurar el cupo del cliente y pasar la reserva a <strong>Reserva Confirmada</strong>.
+                </p>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <a href="/admin/reservas/reserva/" class="btn btn-outline-secondary btn-sm rounded-pill px-3">
+                    <i class="bi bi-gear-fill me-1"></i>Panel Django Admin
+                </a>
+                <a href="{% url 'productos:catalogo' %}" class="btn btn-primary btn-sm rounded-pill px-3">
+                    <i class="bi bi-shop me-1"></i>Ver Catálogo
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tarjetas de Métricas Financieras (KPIs) -->
+    <div class="row g-3 mb-4">
+        <div class="col-sm-6 col-xl-3">
+            <div class="card border-0 shadow-sm rounded-4 h-100 bg-white">
+                <div class="card-body p-4 d-flex align-items-center gap-3">
+                    <div class="badge bg-primary-subtle text-primary p-3 rounded-4 fs-3">
+                        <i class="bi bi-clock-history"></i>
+                    </div>
+                    <div>
+                        <div class="text-muted small fw-bold text-uppercase">Por Validar</div>
+                        <div class="fs-2 fw-bolder text-dark">{{ total_en_revision }}</div>
+                        <div class="small text-primary">Comprobantes en espera</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-sm-6 col-xl-3">
+            <div class="card border-0 shadow-sm rounded-4 h-100 bg-white">
+                <div class="card-body p-4 d-flex align-items-center gap-3">
+                    <div class="badge bg-success-subtle text-success p-3 rounded-4 fs-3">
+                        <i class="bi bi-check-circle-fill"></i>
+                    </div>
+                    <div>
+                        <div class="text-muted small fw-bold text-uppercase">Reservas Confirmadas</div>
+                        <div class="fs-2 fw-bolder text-success">{{ total_confirmadas }}</div>
+                        <div class="small text-muted">Abonos acreditados</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-sm-6 col-xl-3">
+            <div class="card border-0 shadow-sm rounded-4 h-100 bg-white">
+                <div class="card-body p-4 d-flex align-items-center gap-3">
+                    <div class="badge bg-emerald-subtle text-success p-3 rounded-4 fs-3 bg-opacity-25" style="background-color: #ecfdf5;">
+                        <i class="bi bi-cash-stack text-success"></i>
+                    </div>
+                    <div>
+                        <div class="text-muted small fw-bold text-uppercase">Total Anticipos Confirmados</div>
+                        <div class="fs-2 fw-bolder text-dark">{{ suma_anticipos_confirmados|moneda }}</div>
+                        <div class="small text-success">Dinero en cuenta</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-sm-6 col-xl-3">
+            <div class="card border-0 shadow-sm rounded-4 h-100 bg-white">
+                <div class="card-body p-4 d-flex align-items-center gap-3">
+                    <div class="badge bg-danger-subtle text-danger p-3 rounded-4 fs-3">
+                        <i class="bi bi-x-octagon-fill"></i>
+                    </div>
+                    <div>
+                        <div class="text-muted small fw-bold text-uppercase">Comprobantes Rechazados</div>
+                        <div class="fs-2 fw-bolder text-danger">{{ total_rechazadas }}</div>
+                        <div class="small text-muted">Requieren subsanación</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Barra de Filtros, Pestañas y Búsqueda -->
+    <div class="bg-white p-3 rounded-4 border shadow-sm mb-4">
+        <div class="row g-3 align-items-center justify-content-between">
+            <!-- Pestañas de Filtrado -->
+            <div class="col-lg-7">
+                <ul class="nav nav-pills gap-2">
+                    <li class="nav-item">
+                        <a class="nav-link rounded-pill px-3 fw-medium {% if filtro_actual == 'revision' %}active bg-primary{% else %}bg-light text-dark{% endif %}"
+                           href="?filtro=revision{% if query %}&q={{ query }}{% endif %}">
+                            <i class="bi bi-hourglass-split me-1"></i>Por Validar
+                            <span class="badge bg-white text-primary ms-1">{{ total_en_revision }}</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link rounded-pill px-3 fw-medium {% if filtro_actual == 'confirmadas' %}active bg-success{% else %}bg-light text-dark{% endif %}"
+                           href="?filtro=confirmadas{% if query %}&q={{ query }}{% endif %}">
+                            <i class="bi bi-check2-all me-1"></i>Confirmadas
+                            <span class="badge bg-white text-success ms-1">{{ total_confirmadas }}</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link rounded-pill px-3 fw-medium {% if filtro_actual == 'rechazadas' %}active bg-danger{% else %}bg-light text-dark{% endif %}"
+                           href="?filtro=rechazadas{% if query %}&q={{ query }}{% endif %}">
+                            <i class="bi bi-x-circle me-1"></i>Rechazadas
+                            <span class="badge bg-white text-danger ms-1">{{ total_rechazadas }}</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link rounded-pill px-3 fw-medium {% if filtro_actual == 'pendientes' %}active bg-warning text-dark{% else %}bg-light text-dark{% endif %}"
+                           href="?filtro=pendientes{% if query %}&q={{ query }}{% endif %}">
+                            <i class="bi bi-clock me-1"></i>Sin Comprobante
+                            <span class="badge bg-dark text-white ms-1">{{ total_pendientes_pago }}</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link rounded-pill px-3 fw-medium {% if filtro_actual == 'todas' %}active bg-secondary{% else %}bg-light text-dark{% endif %}"
+                           href="?filtro=todas{% if query %}&q={{ query }}{% endif %}">
+                            Todas
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Buscador Rápido -->
+            <div class="col-lg-5">
+                <form method="GET" class="d-flex gap-2">
+                    <input type="hidden" name="filtro" value="{{ filtro_actual }}">
+                    <div class="input-group">
+                        <span class="input-group-text bg-white border-end-0 text-muted">
+                            <i class="bi bi-search"></i>
+                        </span>
+                        <input type="text" name="q" class="form-control border-start-0" placeholder="Buscar por código, cliente, DNI, producto..." value="{{ query|default:'' }}">
+                    </div>
+                    <button class="btn btn-outline-primary px-3" type="submit">Buscar</button>
+                    {% if query %}
+                        <a href="?filtro={{ filtro_actual }}" class="btn btn-outline-secondary" title="Limpiar búsqueda">
+                            <i class="bi bi-x-lg"></i>
+                        </a>
+                    {% endif %}
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabla de Reservas y Comprobantes -->
+    <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-5">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light border-bottom">
+                    <tr class="small text-uppercase text-secondary">
+                        <th class="ps-4">Código / Fecha</th>
+                        <th>Cliente</th>
+                        <th>Producto y Cupo</th>
+                        <th>Desglose Financiero</th>
+                        <th>Datos Transferencia</th>
+                        <th class="text-center">Comprobante Adjunto</th>
+                        <th>Estado Actual</th>
+                        <th class="text-end pe-4">Acción del Gestor</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in reservas %}
+                        <tr>
+                            <!-- Código y Fecha -->
+                            <td class="ps-4">
+                                <div class="fw-bold font-monospace text-primary fs-6">{{ r.codigo }}</div>
+                                <div class="text-muted small">
+                                    <i class="bi bi-calendar3 me-1"></i>{{ r.fecha_creacion|date:"d/m/Y H:i" }}
+                                </div>
+                            </td>
+
+                            <!-- Datos del Cliente -->
+                            <td>
+                                <div class="fw-bold text-dark">{{ r.nombre_cliente }}</div>
+                                <div class="small text-muted">{{ r.documento_identidad }}</div>
+                                <div class="small">
+                                    <a href="https://wa.me/{{ r.telefono_cliente|cut:' '|cut:'+'|cut:'-' }}" target="_blank" class="text-success text-decoration-none">
+                                        <i class="bi bi-whatsapp me-1"></i>{{ r.telefono_cliente }}
+                                    </a>
+                                </div>
+                            </td>
+
+                            <!-- Producto y Cupo -->
+                            <td>
+                                <div class="fw-bold text-dark text-truncate" style="max-width: 220px;" title="{{ r.producto.nombre }}">
+                                    {{ r.producto.nombre }}
+                                </div>
+                                <div class="small text-muted">SKU: {{ r.producto.sku }}</div>
+                                <span class="badge bg-secondary-subtle text-secondary small">
+                                    {{ r.cantidad }} unidad{{ r.cantidad|pluralize:"es" }} apartada{{ r.cantidad|pluralize:"s" }}
+                                </span>
+                            </td>
+
+                            <!-- Desglose Financiero -->
+                            <td>
+                                <div class="small text-muted">Total: <span class="fw-bold text-dark">{{ r.precio_total|moneda }}</span></div>
+                                <div class="small text-success fw-bold">
+                                    <i class="bi bi-cash-coin me-1"></i>Anticipo: {{ r.monto_anticipo|moneda }}
+                                </div>
+                                <div class="small text-secondary">Resta tienda: {{ r.saldo_en_tienda|moneda }}</div>
+                            </td>
+
+                            <!-- Datos de la Transferencia -->
+                            <td>
+                                {% if r.banco_origen %}
+                                    <div class="small fw-semibold text-dark">{{ r.banco_origen }}</div>
+                                {% else %}
+                                    <span class="text-muted small">No especificado</span>
+                                {% endif %}
+                                {% if r.numero_transaccion %}
+                                    <div class="small text-muted">Ref: <code>{{ r.numero_transaccion }}</code></div>
+                                {% endif %}
+                            </td>
+
+                            <!-- Visualizador de Comprobante -->
+                            <td class="text-center">
+                                {% if r.comprobante %}
+                                    {% if r.es_imagen_comprobante %}
+                                        <div class="d-flex flex-column align-items-center gap-1">
+                                            <a href="{{ r.comprobante.url }}" target="_blank">
+                                                <img src="{{ r.comprobante.url }}" alt="Comprobante" class="rounded-2 border shadow-sm" style="width: 52px; height: 52px; object-fit: cover;">
+                                            </a>
+                                            <a href="{{ r.comprobante.url }}" target="_blank" class="badge bg-light text-primary border text-decoration-none small">
+                                                <i class="bi bi-zoom-in me-1"></i>Ver Foto
+                                            </a>
+                                        </div>
+                                    {% elif r.es_pdf_comprobante %}
+                                        <div class="d-flex flex-column align-items-center gap-1">
+                                            <a href="{{ r.comprobante.url }}" target="_blank" class="btn btn-outline-danger btn-sm py-1 px-2 rounded-2">
+                                                <i class="bi bi-file-earmark-pdf-fill fs-5 d-block"></i>
+                                                <span class="small">Abrir PDF</span>
+                                            </a>
+                                        </div>
+                                    {% else %}
+                                        <a href="{{ r.comprobante.url }}" target="_blank" class="btn btn-sm btn-outline-secondary">
+                                            <i class="bi bi-download me-1"></i>Descargar
+                                        </a>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="badge bg-light text-muted border">Sin comprobante</span>
+                                {% endif %}
+                            </td>
+
+                            <!-- Estado Actual -->
+                            <td>
+                                {% if r.estado == 'COMPROBANTE_REVISION' %}
+                                    <span class="badge bg-primary text-white px-3 py-2 rounded-pill small">
+                                        <i class="bi bi-hourglass-split me-1"></i>Comprobante en Revisión
+                                    </span>
+                                {% elif r.estado == 'CONFIRMADA' %}
+                                    <span class="badge bg-success text-white px-3 py-2 rounded-pill small">
+                                        <i class="bi bi-check-circle-fill me-1"></i>Reserva Confirmada
+                                    </span>
+                                    {% if r.fecha_validacion %}
+                                        <div class="text-muted small mt-1">{{ r.fecha_validacion|date:"d/m H:i" }}</div>
+                                    {% endif %}
+                                {% elif r.estado == 'RECHAZADA' %}
+                                    <span class="badge bg-danger text-white px-3 py-2 rounded-pill small">
+                                        <i class="bi bi-x-circle-fill me-1"></i>Comprobante Rechazado
+                                    </span>
+                                    <div class="small text-danger mt-1" style="max-width: 160px;" title="{{ r.motivo_rechazo }}">
+                                        <strong>Motivo:</strong> {{ r.motivo_rechazo|truncatechars:45 }}
+                                    </div>
+                                {% elif r.estado == 'PENDIENTE_PAGO' %}
+                                    <span class="badge bg-warning text-dark px-3 py-2 rounded-pill small">
+                                        <i class="bi bi-clock me-1"></i>Pendiente de Pago
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-secondary px-3 py-2 rounded-pill small">{{ r.get_estado_display }}</span>
+                                {% endif %}
+                            </td>
+
+                            <!-- Acciones de Validación (HU 4: Panel para aprobar o rechazar con motivo) -->
+                            <td class="text-end pe-4">
+                                <div class="d-flex justify-content-end align-items-center gap-2">
+                                    <!-- Botón Aprobar Abono (Pasa a Reserva Confirmada) -->
+                                    <form method="POST" action="{% url 'reservas:aprobar' r.codigo %}" onsubmit="return confirm('¿Confirmas que el abono de {{ r.monto_anticipo|moneda }} fue verificado en las cuentas bancarias? La reserva pasará a Reserva Confirmada.');">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-sm btn-success fw-bold px-3 py-2 rounded-3 shadow-sm" {% if r.estado == 'CONFIRMADA' %}disabled{% endif %}>
+                                            <i class="bi bi-check-lg me-1"></i>Aprobar Abono
+                                        </button>
+                                    </form>
+
+                                    <!-- Botón Rechazar con Motivo -->
+                                    <button type="button" class="btn btn-sm btn-outline-danger fw-bold px-3 py-2 rounded-3"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#modalRechazar"
+                                            data-codigo="{{ r.codigo }}"
+                                            data-cliente="{{ r.nombre_cliente }}"
+                                            data-monto="{{ r.monto_anticipo|moneda }}">
+                                        <i class="bi bi-x-lg me-1"></i>Rechazar
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="8" class="text-center py-5 text-muted">
+                                <i class="bi bi-folder2-open display-4 opacity-50 mb-3 d-block"></i>
+                                <h5 class="fw-bold">No hay reservas registradas en esta sección</h5>
+                                <p class="small mb-0">Selecciona otra pestaña o borra los filtros de búsqueda.</p>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<!-- Modal para Rechazar con Motivo (Requisito HU 4) -->
+<div class="modal fade" id="modalRechazar" tabindex="-1" aria-labelledby="modalRechazarLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-4 border-0 shadow">
+            <div class="modal-header bg-danger text-white border-0 py-3 px-4">
+                <h5 class="modal-title fw-bold" id="modalRechazarLabel">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>Rechazar Comprobante de Abono
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <form method="POST" id="formRechazar" action="">
+                {% csrf_token %}
+                <div class="modal-body p-4">
+                    <p class="text-muted small">
+                        Indica el motivo por el cual el comprobante no es válido. Este mensaje será visible para el cliente <strong id="modalCliente"></strong> en su pantalla de seguimiento para que pueda subsanar el pago.
+                    </p>
+
+                    <!-- Motivos rápidos / sugeridos -->
+                    <label class="form-label fw-bold small text-dark">Motivos frecuentes (haz clic para autocompletar):</label>
+                    <div class="d-flex flex-wrap gap-2 mb-3">
+                        <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill py-1 px-2 small btn-sugerencia" data-texto="El valor de la transferencia no coincide con el anticipo requerido.">
+                            Monto no coincide
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill py-1 px-2 small btn-sugerencia" data-texto="La imagen o PDF del comprobante es ilegible o está cortada.">
+                            Comprobante ilegible
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill py-1 px-2 small btn-sugerencia" data-texto="La transacción no aparece reflejada en la cuenta bancaria de la tienda.">
+                            No reflejada en cuenta
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill py-1 px-2 small btn-sugerencia" data-texto="Comprobante ya utilizado en otra reserva (referencia duplicada).">
+                            Referencia duplicada
+                        </button>
+                    </div>
+
+                    <!-- Campo de texto obligatorio para el motivo -->
+                    <div class="mb-3">
+                        <label for="inputMotivo" class="form-label fw-bold small text-dark">
+                            Motivo detallado del rechazo <span class="text-danger">*</span>:
+                        </label>
+                        <textarea class="form-control" id="inputMotivo" name="motivo_rechazo" rows="3" placeholder="Escribe aquí el motivo del rechazo..." required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0 px-4 pb-4">
+                    <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-danger rounded-pill px-4 fw-bold">
+                        <i class="bi bi-x-circle me-1"></i>Confirmar Rechazo
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Configurar modal dinámico de rechazo
+    const modalRechazar = document.getElementById('modalRechazar');
+    const formRechazar = document.getElementById('formRechazar');
+    const modalCliente = document.getElementById('modalCliente');
+    const inputMotivo = document.getElementById('inputMotivo');
+
+    if (modalRechazar) {
+        modalRechazar.addEventListener('show.bs.modal', function (event) {
+            const button = event.relatedTarget;
+            const codigo = button.getAttribute('data-codigo');
+            const cliente = button.getAttribute('data-cliente');
+
+            modalCliente.textContent = cliente + ' (' + codigo + ')';
+            formRechazar.action = '/reservas/panel-financiero/rechazar/' + codigo + '/';
+            inputMotivo.value = '';
+        });
+    }
+
+    // Botones de sugerencias rápidas
+    document.querySelectorAll('.btn-sugerencia').forEach(btn => {
+        btn.addEventListener('click', function() {
+            inputMotivo.value = this.getAttribute('data-texto');
+            inputMotivo.focus();
+        });
+    });
+</script>
+{% endblock %}

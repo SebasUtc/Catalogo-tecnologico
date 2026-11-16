@@ -1,6 +1,8 @@
 from decimal import Decimal
 from django.contrib import messages
+from django.contrib.admin.views.decorators import staff_member_required
 from django.db import transaction
+from django.db.models import Q, Sum
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from productos.models import Producto
@@ -73,11 +75,11 @@ def solicitar_reserva_view(request, slug):
 
 def resumen_reserva_view(request, codigo):
     """
-    Vista de confirmación y resumen de la reserva:
-    - Muestra el estado actual ('Pendiente de Pago' o 'Comprobante en Revisión').
-    - Muestra el desglose financiero (Total, Anticipo, Saldo en tienda).
-    - Muestra las cuentas bancarias autorizadas.
-    - Incluye formulario para subir comprobante de anticipo (HU 3).
+    Vista de confirmación y resumen de la reserva para el cliente:
+    - Muestra estado dinámico: 'Pendiente de Pago', 'Comprobante en Revisión',
+      'Reserva Confirmada' (HU 4) o 'Comprobante Rechazado' (con motivo).
+    - Desglose financiero y cuentas bancarias.
+    - Formulario de subida de comprobante (HU 3).
     """
     reserva = get_object_or_404(
         Reserva.objects.select_related('producto', 'producto__marca', 'producto__categoria'),
@@ -151,3 +153,103 @@ def consultar_reserva_view(request):
             error = f"No se encontró ninguna reserva registrada con el código '{codigo}'."
 
     return render(request, 'reservas/consultar.html', {'error': error, 'codigo_busqueda': codigo})
+
+
+# ==============================================================================
+# HU 4: PANEL DEL GESTOR FINANCIERO (VALIDACIÓN DE COMPROBANTES DE ABONO)
+# ==============================================================================
+
+@staff_member_required(login_url='/admin/login/?next=/reservas/panel-financiero/')
+def panel_financiero_view(request):
+    """
+    HU 4: 'Como gestor financiero, quiero validar comprobantes para confirmar el abono.'
+    Criterio de Aceptación: 'Panel para aprobar o rechazar con motivo. Pasa a Reserva Confirmada.'
+    """
+    filtro = request.GET.get('filtro', 'revision').strip()
+    query = request.GET.get('q', '').strip()
+
+    reservas = Reserva.objects.select_related('producto', 'producto__marca', 'validado_por')
+
+    # Métricas para el Gestor Financiero
+    total_en_revision = Reserva.objects.filter(estado=Reserva.ESTADO_COMPROBANTE_REVISION).count()
+    total_confirmadas = Reserva.objects.filter(estado=Reserva.ESTADO_CONFIRMADA).count()
+    total_rechazadas = Reserva.objects.filter(estado=Reserva.ESTADO_RECHAZADA).count()
+    total_pendientes_pago = Reserva.objects.filter(estado=Reserva.ESTADO_PENDIENTE_PAGO).count()
+
+    suma_anticipos_confirmados = (
+        Reserva.objects.filter(estado=Reserva.ESTADO_CONFIRMADA)
+        .aggregate(total=Sum('monto_anticipo'))['total'] or Decimal('0.00')
+    )
+
+    # Filtrado por pestaña de estado
+    if filtro == 'revision':
+        reservas = reservas.filter(estado=Reserva.ESTADO_COMPROBANTE_REVISION)
+    elif filtro == 'confirmadas':
+        reservas = reservas.filter(estado=Reserva.ESTADO_CONFIRMADA)
+    elif filtro == 'rechazadas':
+        reservas = reservas.filter(estado=Reserva.ESTADO_RECHAZADA)
+    elif filtro == 'pendientes':
+        reservas = reservas.filter(estado=Reserva.ESTADO_PENDIENTE_PAGO)
+    # 'todas': no aplica filtro de estado
+
+    # Búsqueda por texto (código, cliente, documento, teléfono, producto)
+    if query:
+        reservas = reservas.filter(
+            Q(codigo__icontains=query) |
+            Q(nombre_cliente__icontains=query) |
+            Q(documento_identidad__icontains=query) |
+            Q(telefono_cliente__icontains=query) |
+            Q(producto__nombre__icontains=query) |
+            Q(numero_transaccion__icontains=query)
+        )
+
+    context = {
+        'reservas': reservas,
+        'filtro_actual': filtro,
+        'query': query,
+        'total_en_revision': total_en_revision,
+        'total_confirmadas': total_confirmadas,
+        'total_rechazadas': total_rechazadas,
+        'total_pendientes_pago': total_pendientes_pago,
+        'suma_anticipos_confirmados': suma_anticipos_confirmados,
+    }
+    return render(request, 'reservas/panel_financiero.html', context)
+
+
+@staff_member_required(login_url='/admin/login/?next=/reservas/panel-financiero/')
+def aprobar_reserva_view(request, codigo):
+    """
+    HU 4: Acción de Aprobar Abono.
+    Pasa la reserva a estado 'Reserva Confirmada'.
+    """
+    reserva = get_object_or_404(Reserva, codigo=codigo)
+
+    if request.method == 'POST':
+        reserva.aprobar_abono(usuario=request.user)
+        messages.success(
+            request,
+            f"✓ Reserva {reserva.codigo} aprobada exitosamente. El abono de ${reserva.monto_anticipo:,.2f} fue confirmado. "
+            f"El estado pasó a 'Reserva Confirmada'."
+        )
+    return redirect('reservas:panel_financiero')
+
+
+@staff_member_required(login_url='/admin/login/?next=/reservas/panel-financiero/')
+def rechazar_reserva_view(request, codigo):
+    """
+    HU 4: Acción de Rechazar con motivo.
+    Permite ingresar la razón del rechazo y almacena el motivo para el cliente.
+    """
+    reserva = get_object_or_404(Reserva, codigo=codigo)
+
+    if request.method == 'POST':
+        motivo = request.POST.get('motivo_rechazo', '').strip()
+        if not motivo:
+            motivo = "Comprobante no válido o valor no acreditado en las cuentas bancarias de la tienda."
+
+        reserva.rechazar_abono(motivo=motivo, usuario=request.user)
+        messages.warning(
+            request,
+            f"⚠ Reserva {reserva.codigo} rechazada. Se registró el motivo: '{motivo}' para notificación al cliente."
+        )
+    return redirect('reservas:panel_financiero')

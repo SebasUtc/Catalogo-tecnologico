@@ -13,9 +13,9 @@ El desarrollo se organiza en Sprints iterativos e incrementales:
   - **HU 1:** Catálogo de productos, ficha técnica, precios, cálculo de anticipos y filtros por marca y categoría.
   - **HU 2:** Solicitud de reserva para apartar cupo en el lote: cálculo de anticipo según cantidad, visualización de cuentas bancarias y estado **Pendiente de Pago**.
   - **HU 3:** Carga del comprobante de anticipo en formatos JPG, PNG o PDF con cambio de estado automático a **Comprobante en Revisión**.
-- **Sprint 2 (Próximo):** Panel y flujo del vendedor para validar el comprobante bancario y confirmar formalmente el cupo en bodega.
-- **Sprint 3:** Gestión de lotes, alertas de vencimiento de reservas y liberación automática de cupos impagos.
-- **Sprint 4:** Liquidación de saldo restante en tienda física y entrega del equipo.
+  - **HU 4:** Panel del gestor financiero para validar comprobantes: aprobación del abono (pasa a **Reserva Confirmada**) o rechazo con motivo para subsanación.
+- **Sprint 2 (Próximo):** Alertas de vencimiento de reservas y liberación automática de cupos impagos.
+- **Sprint 3:** Panel de despacho en tienda física: verificación de documento, cobro del saldo restante y entrega del equipo.
 
 ---
 
@@ -31,10 +31,15 @@ El desarrollo se organiza en Sprints iterativos e incrementales:
 
 ### 📌 Historia de Usuario 3 (HU 3)
 > *"Como cliente, quiero subir el comprobante de anticipo para registrar el pago."*
+> - **Criterios de Aceptación:** Permite adjuntar JPG/PNG/PDF. Pasa a Comprobante en Revisión.
+
+### 📌 Historia de Usuario 4 (HU 4)
+> *"Como gestor financiero, quiero validar comprobantes para confirmar el abono."*
 > - **Criterios de Aceptación Cumplidos:**
->   - [x] **Permite adjuntar JPG/PNG/PDF:** Validador estricto que acepta únicamente formatos de imagen (JPG, JPEG, PNG) o documentos PDF de comprobantes bancarios, rechazando ejecutables u otros formatos no autorizados (límite: 10 MB).
->   - [x] **Pasa a Comprobante en Revisión:** Al subir el comprobante, el estado de la reserva transiciona automáticamente de `PENDIENTE_PAGO` a `COMPROBANTE_REVISION` (*"Comprobante en Revisión"*).
->   - [x] **Seguimiento visual y administración:** La interfaz del cliente muestra la previsualización del comprobante (visor de imagen o botón de apertura de PDF) y en el panel de administración de vendedores se habilita el acceso directo al archivo junto con la fecha y hora exacta del envío.
+>   - [x] **Panel del Gestor Financiero:** Interfaz web completa (`/reservas/panel-financiero/`) con KPIs en tiempo real (abonos por validar, confirmados, total de anticipos recaudados), pestañas por estado, buscador rápido y visualizador de comprobantes (imágenes en modal y visor de PDF).
+>   - [x] **Aprobar Abono (Pasa a Reserva Confirmada):** Al hacer clic en "Aprobar Abono", la reserva transiciona al estado oficial `CONFIRMADA` (*"Reserva Confirmada"*), registrando fecha y usuario gestor que validó el pago.
+>   - [x] **Rechazar con Motivo:** Modal con motivos frecuentes y campo de texto obligatorio para registrar la causa del rechazo (ej. *monto incompleto*, *comprobante ilegible*, *referencia no acreditada*). La reserva pasa a `RECHAZADA` y el cliente ve el motivo exacto en su pantalla con la opción de subir un nuevo comprobante corregido.
+>   - [x] **Integración con Django Admin:** Acciones en lote (*bulk actions*) para aprobar reservas o rechazarlas con motivo predefinido directamente desde la administración.
 
 ---
 

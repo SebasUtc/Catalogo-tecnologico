@@ -3,6 +3,7 @@ import random
 import string
 from datetime import timedelta
 from decimal import Decimal
+from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils import timezone
@@ -96,22 +97,25 @@ class Reserva(models.Model):
     """
     Modelo de Reserva para apartar cupo en el lote.
     Flujo de Estados:
-    1. 'PENDIENTE_PAGO': Estado inicial al solicitar el cupo.
+    1. 'PENDIENTE_PAGO': Estado inicial al solicitar el cupo (HU 2).
     2. 'COMPROBANTE_REVISION': Al adjuntar JPG/PNG/PDF (HU 3).
-    3. 'CONFIRMADA': Al ser validado por el vendedor.
-    4. 'ENTREGADA': Liquidada y retirada en tienda física.
-    5. 'CANCELADA': Cupo liberado.
+    3. 'CONFIRMADA': Al ser aprobada por el Gestor Financiero -> 'Reserva Confirmada' (HU 4).
+    4. 'RECHAZADA': Rechazada por el Gestor Financiero con motivo (HU 4).
+    5. 'ENTREGADA': Liquidada y retirada en tienda física.
+    6. 'CANCELADA': Cupo liberado.
     """
     ESTADO_PENDIENTE_PAGO = 'PENDIENTE_PAGO'
     ESTADO_COMPROBANTE_REVISION = 'COMPROBANTE_REVISION'
     ESTADO_CONFIRMADA = 'CONFIRMADA'
+    ESTADO_RECHAZADA = 'RECHAZADA'
     ESTADO_ENTREGADA = 'ENTREGADA'
     ESTADO_CANCELADA = 'CANCELADA'
 
     ESTADOS_CHOICES = [
         (ESTADO_PENDIENTE_PAGO, 'Pendiente de Pago'),
         (ESTADO_COMPROBANTE_REVISION, 'Comprobante en Revisión'),
-        (ESTADO_CONFIRMADA, 'Confirmada (Cupo Apartado)'),
+        (ESTADO_CONFIRMADA, 'Reserva Confirmada'),
+        (ESTADO_RECHAZADA, 'Comprobante Rechazado'),
         (ESTADO_ENTREGADA, 'Entregada y Liquidada en Tienda'),
         (ESTADO_CANCELADA, 'Cancelada'),
     ]
@@ -203,6 +207,26 @@ class Reserva(models.Model):
         verbose_name="Fecha de Subida del Comprobante"
     )
 
+    # Validación por Gestor Financiero (HU 4)
+    motivo_rechazo = models.TextField(
+        blank=True,
+        verbose_name="Motivo de Rechazo",
+        help_text="Motivo por el cual el comprobante no fue aprobado"
+    )
+    validado_por = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reservas_validadas",
+        verbose_name="Gestor Financiero"
+    )
+    fecha_validacion = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="Fecha de Validación"
+    )
+
     # Estado y Auditoría
     estado = models.CharField(
         max_length=30,
@@ -270,3 +294,27 @@ class Reserva(models.Model):
         if self.comprobante:
             return os.path.basename(self.comprobante.name)
         return ""
+
+    def aprobar_abono(self, usuario=None):
+        """
+        Criterio HU 4: Pasa a Reserva Confirmada.
+        El gestor financiero valida el comprobante y confirma el abono.
+        """
+        self.estado = self.ESTADO_CONFIRMADA
+        self.fecha_validacion = timezone.now()
+        if usuario and getattr(usuario, 'is_authenticated', False):
+            self.validado_por = usuario
+        self.motivo_rechazo = ""
+        self.save()
+
+    def rechazar_abono(self, motivo, usuario=None):
+        """
+        Criterio HU 4: Rechazar con motivo.
+        Registra la razón por la cual el comprobante no es válido.
+        """
+        self.estado = self.ESTADO_RECHAZADA
+        self.motivo_rechazo = motivo or "El comprobante no coincide con los registros bancarios o el valor es incorrecto."
+        self.fecha_validacion = timezone.now()
+        if usuario and getattr(usuario, 'is_authenticated', False):
+            self.validado_por = usuario
+        self.save()
