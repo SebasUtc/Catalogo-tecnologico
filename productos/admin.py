@@ -6,7 +6,7 @@ from .models import Categoria, Marca, Producto
 @admin.register(Categoria)
 class CategoriaAdmin(admin.ModelAdmin):
     list_display = ("nombre", "slug", "activo", "total_productos")
-    list_filter = ("acti",)
+    list_filter = ("activo",)
     search_fields = ("nombre", "descripcion")
     prepopulated_fields = {"slug": ("nombre",)}
 
