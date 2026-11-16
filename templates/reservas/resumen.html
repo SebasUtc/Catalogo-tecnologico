@@ -1,48 +1,270 @@
 {% extends "base.html" %}
 {% load productos_tags %}
 
-{% block title %}Reserva {{ reserva.codigo }} | Pendiente de Pago | TecnoReserva{% endblock %}
+{% block title %}Reserva {{ reserva.codigo }} | {{ reserva.get_estado_display }} | TecnoReserva{% endblock %}
 
 {% block content %}
 <div class="container">
 
-    <!-- Mensaje de Éxito y Estado de la Reserva -->
-    <div class="card border-warning shadow-sm rounded-4 mb-4 overflow-hidden">
-        <div class="card-header bg-warning bg-opacity-25 border-warning py-3 px-4">
-            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
-                <div class="d-flex align-items-center gap-2">
-                    <span class="badge bg-warning text-dark px-3 py-2 rounded-pill fs-6 fw-bold">
-                        <i class="bi bi-hourglass-split me-1"></i>Estado: {{ reserva.get_estado_display }}
-                    </span>
-                    <span class="text-muted small">| Cupo provisional apartado en lote</span>
-                </div>
-                <div class="small text-muted">
-                    <i class="bi bi-clock-history me-1"></i>Solicitud creada el {{ reserva.fecha_creacion|date:"d/m/Y H:i" }}
+    <!-- Mensaje y Banner Principal según el Estado de la Reserva -->
+    {% if reserva.estado == 'PENDIENTE_PAGO' %}
+        <div class="card border-warning shadow-sm rounded-4 mb-4 overflow-hidden">
+            <div class="card-header bg-warning bg-opacity-25 border-warning py-3 px-4">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge bg-warning text-dark px-3 py-2 rounded-pill fs-6 fw-bold">
+                            <i class="bi bi-hourglass-split me-1"></i>Estado: {{ reserva.get_estado_display }}
+                        </span>
+                        <span class="text-muted small">| Cupo provisional apartado en lote</span>
+                    </div>
+                    <div class="small text-muted">
+                        <i class="bi bi-clock-history me-1"></i>Solicitud creada el {{ reserva.fecha_creacion|date:"d/m/Y H:i" }}
+                    </div>
                 </div>
             </div>
-        </div>
-        <div class="card-body p-4 p-md-5">
-            <div class="row align-items-center g-4">
-                <div class="col-lg-8">
-                    <span class="text-uppercase text-secondary small fw-bold">Código Único de Reserva</span>
-                    <h2 class="display-6 fw-bold text-dark font-monospace mb-2">{{ reserva.codigo }}</h2>
-                    <p class="text-muted mb-0">
-                        Estimado/a <strong>{{ reserva.nombre_cliente }}</strong>, hemos apartado tu cupo provisionalmente. Para formalizar tu apartado, debes realizar la consignación del <strong>anticipo requerido</strong> en cualquiera de las cuentas bancarias autorizadas que se indican a continuación.
-                    </p>
-                </div>
-                <div class="col-lg-4 text-lg-end">
-                    <div class="p-3 bg-light rounded-4 border text-center text-lg-end">
-                        <div class="small text-muted mb-1">Monto de Anticipo a Transferir:</div>
-                        <div class="display-6 fw-bolder text-success mb-1">{{ reserva.monto_anticipo|moneda }}</div>
-                        <span class="badge bg-success-subtle text-success border border-success-subtle">
-                            Saldo en tienda: {{ reserva.saldo_en_tienda|moneda }}
-                        </span>
+            <div class="card-body p-4 p-md-5">
+                <div class="row align-items-center g-4">
+                    <div class="col-lg-8">
+                        <span class="text-uppercase text-secondary small fw-bold">Código Único de Reserva</span>
+                        <h2 class="display-6 fw-bold text-dark font-monospace mb-2">{{ reserva.codigo }}</h2>
+                        <p class="text-muted mb-0">
+                            Estimado/a <strong>{{ reserva.nombre_cliente }}</strong>, hemos apartado tu cupo provisionalmente. Para formalizar tu apartado, debes consignar el <strong>anticipo requerido</strong> y adjuntar tu comprobante de pago en el formulario inferior.
+                        </p>
+                    </div>
+                    <div class="col-lg-4 text-lg-end">
+                        <div class="p-3 bg-light rounded-4 border text-center text-lg-end">
+                            <div class="small text-muted mb-1">Monto de Anticipo a Transferir:</div>
+                            <div class="display-6 fw-bolder text-success mb-1">{{ reserva.monto_anticipo|moneda }}</div>
+                            <span class="badge bg-success-subtle text-success border border-success-subtle">
+                                Saldo en tienda: {{ reserva.saldo_en_tienda|moneda }}
+                            </span>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
+
+    {% elif reserva.estado == 'COMPROBANTE_REVISION' %}
+        <div class="card border-primary shadow-sm rounded-4 mb-4 overflow-hidden">
+            <div class="card-header bg-primary bg-opacity-10 border-primary py-3 px-4">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge bg-primary text-white px-3 py-2 rounded-pill fs-6 fw-bold">
+                            <i class="bi bi-file-earmark-check-fill me-1"></i>Estado: {{ reserva.get_estado_display }}
+                        </span>
+                        <span class="text-primary fw-medium small">| Comprobante recibido y en verificación</span>
+                    </div>
+                    <div class="small text-muted">
+                        <i class="bi bi-clock me-1"></i>Comprobante enviado el {{ reserva.fecha_subida_comprobante|date:"d/m/Y H:i" }}
+                    </div>
+                </div>
+            </div>
+            <div class="card-body p-4 p-md-5">
+                <div class="row align-items-center g-4">
+                    <div class="col-lg-8">
+                        <span class="text-uppercase text-secondary small fw-bold">Código Único de Reserva</span>
+                        <h2 class="display-6 fw-bold text-dark font-monospace mb-2">{{ reserva.codigo }}</h2>
+                        <p class="text-muted mb-0">
+                            ¡Gracias por enviar tu comprobante, <strong>{{ reserva.nombre_cliente }}</strong>! Nuestro asesor en tienda física está verificando la transferencia de tu anticipo por <strong>{{ reserva.monto_anticipo|moneda }}</strong> para apartar tu lote de forma definitiva.
+                        </p>
+                    </div>
+                    <div class="col-lg-4 text-lg-end">
+                        <div class="p-3 bg-primary-subtle rounded-4 border border-primary-subtle text-center text-lg-end">
+                            <div class="small text-primary fw-bold mb-1">Saldo pendiente en tienda:</div>
+                            <div class="display-6 fw-bolder text-primary mb-1">{{ reserva.saldo_en_tienda|moneda }}</div>
+                            <span class="badge bg-white text-dark border">Liquidar al retirar</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    {% else %}
+        <div class="card border-success shadow-sm rounded-4 mb-4 overflow-hidden">
+            <div class="card-header bg-success bg-opacity-10 border-success py-3 px-4">
+                <span class="badge bg-success text-white px-3 py-2 rounded-pill fs-6 fw-bold">
+                    <i class="bi bi-shield-check me-1"></i>Estado: {{ reserva.get_estado_display }}
+                </span>
+            </div>
+            <div class="card-body p-4">
+                <h3 class="fw-bold font-monospace mb-1">{{ reserva.codigo }}</h3>
+                <p class="text-muted mb-0">Reserva de {{ reserva.nombre_cliente }}</p>
+            </div>
+        </div>
+    {% endif %}
+
+    <!-- SECCIÓN CLAVE HU 3: SUBIR O VER COMPROBANTE DE ANTICIPO -->
+    <div class="row g-4 mb-4">
+        <div class="col-12">
+            {% if reserva.estado == 'PENDIENTE_PAGO' %}
+                <!-- Formulario de Carga del Comprobante (HU 3) -->
+                <div class="card border-2 border-primary rounded-4 shadow-sm overflow-hidden">
+                    <div class="card-header bg-primary text-white py-3 px-4 d-flex justify-content-between align-items-center">
+                        <h5 class="fw-bold mb-0">
+                            <i class="bi bi-cloud-arrow-up-fill me-2"></i>Registrar Pago del Anticipo (Adjuntar Comprobante)
+                        </h5>
+                        <span class="badge bg-white text-primary fw-bold">Paso Requerido</span>
+                    </div>
+                    <div class="card-body p-4 p-md-5">
+                        <div class="row g-4">
+                            <div class="col-lg-5">
+                                <h6 class="fw-bold text-dark mb-2">Instrucciones para validar tu reserva:</h6>
+                                <p class="text-muted small">
+                                    Una vez realizada la transferencia o depósito de <strong>{{ reserva.monto_anticipo|moneda }}</strong> a cualquiera de las cuentas de la tienda, adjunta aquí tu comprobante para que el vendedor confirme tu apartado.
+                                </p>
+                                <div class="p-3 bg-light rounded-3 border small">
+                                    <div class="fw-bold text-dark mb-1">
+                                        <i class="bi bi-file-earmark-check text-primary me-1"></i>Formatos Válidos:
+                                    </div>
+                                    <div class="text-secondary">
+                                        Se permiten exclusivamente archivos <strong>JPG, JPEG, PNG o PDF</strong> (tamaño máximo: 10 MB).
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-lg-7">
+                                <form method="POST" action="{% url 'reservas:subir_comprobante' reserva.codigo %}" enctype="multipart/form-data" class="bg-light p-4 rounded-4 border">
+                                    {% csrf_token %}
+
+                                    {% if form_comprobante.errors %}
+                                        <div class="alert alert-danger rounded-3 small">
+                                            <ul class="mb-0">
+                                                {% for field in form_comprobante %}
+                                                    {% for err in field.errors %}
+                                                        <li><strong>{{ field.label }}:</strong> {{ err }}</li>
+                                                    {% endfor %}
+                                                {% endfor %}
+                                                {% for err in form_comprobante.non_field_errors %}
+                                                    <li>{{ err }}</li>
+                                                {% endfor %}
+                                            </ul>
+                                        </div>
+                                    {% endif %}
+
+                                    <!-- Campo de Archivo (JPG/PNG/PDF) -->
+                                    <div class="mb-3">
+                                        <label for="id_comprobante" class="form-label fw-bold">
+                                            <i class="bi bi-paperclip text-primary me-1"></i>Selecciona el Comprobante (JPG, PNG o PDF) <span class="text-danger">*</span>
+                                        </label>
+                                        {{ form_comprobante.comprobante }}
+                                        <div class="form-text small">
+                                            Foto del recibo de depósito o captura/PDF de la transferencia bancaria.
+                                        </div>
+                                    </div>
+
+                                    <div class="row g-3 mb-3">
+                                        <div class="col-md-6">
+                                            <label for="{{ form_comprobante.banco_origen.id_for_label }}" class="form-label fw-semibold small">
+                                                Banco o Billetera de Origen (Opcional)
+                                            </label>
+                                            {{ form_comprobante.banco_origen }}
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="{{ form_comprobante.numero_transaccion.id_for_label }}" class="form-label fw-semibold small">
+                                                Nro. de Referencia / Aprobación (Opcional)
+                                            </label>
+                                            {{ form_comprobante.numero_transaccion }}
+                                        </div>
+                                    </div>
+
+                                    <button type="submit" class="btn btn-primary btn-lg w-100 py-3 fw-bold rounded-3 shadow-sm">
+                                        <i class="bi bi-cloud-arrow-up-fill me-2"></i>Subir Comprobante y Enviar a Revisión
+                                    </button>
+                                    <div class="text-center small text-muted mt-2">
+                                        Al enviar, la reserva pasará automáticamente a estado <strong>Comprobante en Revisión</strong>.
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            {% elif reserva.comprobante %}
+                <!-- Visualización del Comprobante ya Subido -->
+                <div class="card border-info rounded-4 shadow-sm overflow-hidden">
+                    <div class="card-header bg-info bg-opacity-10 py-3 px-4 d-flex justify-content-between align-items-center">
+                        <h5 class="fw-bold text-dark mb-0">
+                            <i class="bi bi-file-earmark-check-fill text-primary me-2"></i>Comprobante de Anticipo Adjunto
+                        </h5>
+                        <span class="badge bg-primary text-white">En Revisión por Vendedor</span>
+                    </div>
+                    <div class="card-body p-4">
+                        <div class="row align-items-center g-4">
+                            <!-- Previsualización según formato -->
+                            <div class="col-md-4 text-center">
+                                {% if reserva.es_imagen_comprobante %}
+                                    <div class="border rounded-3 p-2 bg-light mb-2">
+                                        <img src="{{ reserva.comprobante.url }}" alt="Comprobante" class="img-fluid rounded-2 shadow-sm" style="max-height: 180px; object-fit: contain;">
+                                    </div>
+                                    <a href="{{ reserva.comprobante.url }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-arrows-fullscreen me-1"></i>Ver Imagen Completa
+                                    </a>
+                                {% elif reserva.es_pdf_comprobante %}
+                                    <div class="p-4 bg-danger bg-opacity-10 rounded-3 border border-danger-subtle mb-2">
+                                        <i class="bi bi-file-earmark-pdf-fill text-danger display-4"></i>
+                                        <div class="fw-bold text-dark small mt-2 text-truncate">{{ reserva.nombre_archivo_comprobante }}</div>
+                                    </div>
+                                    <a href="{{ reserva.comprobante.url }}" target="_blank" class="btn btn-sm btn-danger">
+                                        <i class="bi bi-file-pdf me-1"></i>Abrir Documento PDF
+                                    </a>
+                                {% else %}
+                                    <a href="{{ reserva.comprobante.url }}" target="_blank" class="btn btn-sm btn-outline-secondary">
+                                        <i class="bi bi-download me-1"></i>Descargar Archivo Adjunto
+                                    </a>
+                                {% endif %}
+                            </div>
+
+                            <div class="col-md-8">
+                                <h6 class="fw-bold text-dark mb-3">Detalle del Registro de Pago:</h6>
+                                <div class="bg-light p-3 rounded-3 border small mb-3">
+                                    <div class="row g-2">
+                                        <div class="col-sm-6">
+                                            <strong>Archivo:</strong> {{ reserva.nombre_archivo_comprobante }}
+                                        </div>
+                                        <div class="col-sm-6">
+                                            <strong>Fecha de Envío:</strong> {{ reserva.fecha_subida_comprobante|date:"d/m/Y H:i" }}
+                                        </div>
+                                        {% if reserva.banco_origen %}
+                                            <div class="col-sm-6">
+                                                <strong>Banco de Origen:</strong> {{ reserva.banco_origen }}
+                                            </div>
+                                        {% endif %}
+                                        {% if reserva.numero_transaccion %}
+                                            <div class="col-sm-6">
+                                                <strong>Nro. Referencia:</strong> {{ reserva.numero_transaccion }}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+
+                                <div class="alert alert-success border-0 small mb-3">
+                                    <i class="bi bi-info-circle-fill me-1"></i>
+                                    <strong>Próximo paso:</strong> Tu comprobante ya está en la bandeja del vendedor. Una vez confirmado en el sistema, te contactaremos y podrás acudir a retirar tu equipo a nuestra tienda física.
+                                </div>
+
+                                <!-- Botón para reemplazar comprobante si hubo error -->
+                                <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#collapseReemplazar" aria-expanded="false" aria-controls="collapseReemplazar">
+                                    <i class="bi bi-arrow-repeat me-1"></i>¿Te equivocaste de archivo? Reemplazar Comprobante
+                                </button>
+                                <div class="collapse mt-3" id="collapseReemplazar">
+                                    <form method="POST" action="{% url 'reservas:subir_comprobante' reserva.codigo %}" enctype="multipart/form-data" class="p-3 bg-white border rounded-3">
+                                        {% csrf_token %}
+                                        <label class="form-label small fw-bold">Seleccionar nuevo archivo (JPG, PNG o PDF):</label>
+                                        <input type="file" name="comprobante" class="form-control form-control-sm mb-2" accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf" required>
+                                        <button type="submit" class="btn btn-sm btn-warning fw-semibold">
+                                            Actualizar Comprobante
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
     </div>
 
+    <!-- Detalles Financieros y Cuentas de la Tienda -->
     <div class="row g-4">
         <!-- Columna Izquierda: Detalle del Lote y Desglose Financiero -->
         <div class="col-lg-6">
@@ -114,7 +336,7 @@
             </div>
         </div>
 
-        <!-- Columna Derecha: Cuentas Bancarias para Transferir ("Muestra cuentas") -->
+        <!-- Columna Derecha: Cuentas Bancarias de la Tienda -->
         <div class="col-lg-6">
             <div class="bg-white p-4 rounded-4 border shadow-sm mb-4">
                 <div class="d-flex justify-content-between align-items-center mb-3">
@@ -124,7 +346,7 @@
                     <span class="badge bg-success text-white">Consignación de Anticipo</span>
                 </div>
                 <p class="text-muted small mb-3">
-                    Realiza la transferencia por <strong>{{ reserva.monto_anticipo|moneda }}</strong> a cualquiera de las siguientes cuentas:
+                    Consigna <strong>{{ reserva.monto_anticipo|moneda }}</strong> en cualquiera de las siguientes cuentas oficiales:
                 </p>
 
                 <div class="d-flex flex-column gap-3 mb-4">
@@ -154,25 +376,12 @@
                         </div>
                     {% endfor %}
                 </div>
-
-                <!-- Pasos siguientes del modelo de reserva -->
-                <div class="p-3 bg-primary-subtle rounded-3 border border-primary-subtle small">
-                    <h6 class="fw-bold text-primary mb-2">
-                        <i class="bi bi-check2-circle me-1"></i>Siguientes Pasos:
-                    </h6>
-                    <ol class="ps-3 mb-0 text-dark d-flex flex-column gap-1">
-                        <li>Transfiere el valor exacto del anticipo (<strong>{{ reserva.monto_anticipo|moneda }}</strong>).</li>
-                        <li>Coloca el código <strong>{{ reserva.codigo }}</strong> como referencia o concepto.</li>
-                        <li>Conserva tu comprobante de pago para la validación del vendedor en el siguiente sprint.</li>
-                        <li>Una vez confirmado, acude a nuestra tienda física para retirar tu producto y liquidar el saldo de <strong>{{ reserva.saldo_en_tienda|moneda }}</strong>.</li>
-                    </ol>
-                </div>
             </div>
 
             <!-- Botones de Acción -->
             <div class="d-flex flex-wrap gap-2">
                 <button onclick="window.print()" class="btn btn-outline-secondary flex-grow-1 py-2 rounded-3">
-                    <i class="bi bi-printer me-1"></i>Imprimir Comprobante
+                    <i class="bi bi-printer me-1"></i>Imprimir Resumen
                 </button>
                 <a href="{% url 'productos:catalogo' %}" class="btn btn-primary flex-grow-1 py-2 rounded-3">
                     <i class="bi bi-grid me-1"></i>Volver al Catálogo

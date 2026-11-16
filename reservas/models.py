@@ -1,7 +1,9 @@
+import os
 import random
 import string
 from datetime import timedelta
 from decimal import Decimal
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils import timezone
 from productos.models import Producto
@@ -13,6 +15,26 @@ def generar_codigo_unico():
     caracteres = string.ascii_uppercase + string.digits
     sufijo = ''.join(random.choices(caracteres, k=5))
     return f"RES-{anio}-{sufijo}"
+
+
+def validar_extension_comprobante(archivo):
+    """
+    Criterio HU 3: 'Permite adjuntar JPG/PNG/PDF.'
+    Valida que el archivo subido sea estrictamente JPG, JPEG, PNG o PDF y menor a 10MB.
+    """
+    extensiones_validas = ['.jpg', '.jpeg', '.png', '.pdf']
+    ext = os.path.splitext(archivo.name)[1].lower()
+    if ext not in extensiones_validas:
+        raise ValidationError(
+            f"Formato no permitido ({ext}). Solo se aceptan archivos JPG, JPEG, PNG o PDF."
+        )
+
+    # Límite de tamaño: 10 MB
+    limite_mb = 10
+    if archivo.size > limite_mb * 1024 * 1024:
+        raise ValidationError(
+            f"El archivo excede el tamaño máximo permitido de {limite_mb} MB."
+        )
 
 
 class CuentaBancaria(models.Model):
@@ -73,17 +95,22 @@ class CuentaBancaria(models.Model):
 class Reserva(models.Model):
     """
     Modelo de Reserva para apartar cupo en el lote.
-    Estado inicial: 'Pendiente de Pago' hasta que el cliente transfiera el anticipo.
+    Flujo de Estados:
+    1. 'PENDIENTE_PAGO': Estado inicial al solicitar el cupo.
+    2. 'COMPROBANTE_REVISION': Al adjuntar JPG/PNG/PDF (HU 3).
+    3. 'CONFIRMADA': Al ser validado por el vendedor.
+    4. 'ENTREGADA': Liquidada y retirada en tienda física.
+    5. 'CANCELADA': Cupo liberado.
     """
     ESTADO_PENDIENTE_PAGO = 'PENDIENTE_PAGO'
-    ESTADO_COMPROBANTE_SUBIDO = 'COMPROBANTE_SUBIDO'
+    ESTADO_COMPROBANTE_REVISION = 'COMPROBANTE_REVISION'
     ESTADO_CONFIRMADA = 'CONFIRMADA'
     ESTADO_ENTREGADA = 'ENTREGADA'
     ESTADO_CANCELADA = 'CANCELADA'
 
     ESTADOS_CHOICES = [
         (ESTADO_PENDIENTE_PAGO, 'Pendiente de Pago'),
-        (ESTADO_COMPROBANTE_SUBIDO, 'Comprobante Subido / Por Verificar'),
+        (ESTADO_COMPROBANTE_REVISION, 'Comprobante en Revisión'),
         (ESTADO_CONFIRMADA, 'Confirmada (Cupo Apartado)'),
         (ESTADO_ENTREGADA, 'Entregada y Liquidada en Tienda'),
         (ESTADO_CANCELADA, 'Cancelada'),
@@ -150,6 +177,32 @@ class Reserva(models.Model):
         verbose_name="Notas u Observaciones"
     )
 
+    # Comprobante de Pago de Anticipo (HU 3)
+    comprobante = models.FileField(
+        upload_to="comprobantes/%Y/%m/",
+        validators=[validar_extension_comprobante],
+        blank=True,
+        null=True,
+        verbose_name="Comprobante de Anticipo (JPG, PNG o PDF)"
+    )
+    numero_transaccion = models.CharField(
+        max_length=80,
+        blank=True,
+        verbose_name="Número de Transacción / Referencia",
+        help_text="Código o referencia que aparece en tu comprobante de pago"
+    )
+    banco_origen = models.CharField(
+        max_length=100,
+        blank=True,
+        verbose_name="Banco / Billetera de Origen",
+        help_text="Entidad desde donde realizaste la transferencia"
+    )
+    fecha_subida_comprobante = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="Fecha de Subida del Comprobante"
+    )
+
     # Estado y Auditoría
     estado = models.CharField(
         max_length=30,
@@ -193,3 +246,27 @@ class Reserva(models.Model):
 
     def __str__(self):
         return f"{self.codigo} - {self.nombre_cliente} ({self.producto.nombre}) [{self.get_estado_display()}]"
+
+    @property
+    def extension_comprobante(self):
+        """Retorna la extensión en minúsculas del comprobante."""
+        if self.comprobante:
+            return os.path.splitext(self.comprobante.name)[1].lower()
+        return ""
+
+    @property
+    def es_imagen_comprobante(self):
+        """Verifica si el comprobante es una imagen (JPG/PNG)."""
+        return self.extension_comprobante in ['.jpg', '.jpeg', '.png']
+
+    @property
+    def es_pdf_comprobante(self):
+        """Verifica si el comprobante es un documento PDF."""
+        return self.extension_comprobante == '.pdf'
+
+    @property
+    def nombre_archivo_comprobante(self):
+        """Retorna el nombre base del archivo subido."""
+        if self.comprobante:
+            return os.path.basename(self.comprobante.name)
+        return ""

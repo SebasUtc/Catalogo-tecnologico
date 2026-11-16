@@ -73,3 +73,35 @@ class SolicitudReservaForm(forms.ModelForm):
                 f"No hay suficientes cupos disponibles en este lote. Máximo disponible: {self.producto.stock_disponible} unidad(es)."
             )
         return cantidad
+
+
+class SubirComprobanteForm(forms.ModelForm):
+    """
+    Formulario para HU 3: 'Como cliente, quiero subir el comprobante de anticipo para registrar el pago.'
+    Condición: 'Permite adjuntar JPG/PNG/PDF. Pasa a Comprobante en Revisión.'
+    """
+    class Meta:
+        model = Reserva
+        fields = ['comprobante', 'banco_origen', 'numero_transaccion']
+        widgets = {
+            'comprobante': forms.FileInput(attrs={
+                'class': 'form-control form-control-lg',
+                'accept': '.jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf',
+                'id': 'id_comprobante',
+                'required': 'required'
+            }),
+            'banco_origen': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Ej. Bancolombia, Banco Pichincha, Nequi...'
+            }),
+            'numero_transaccion': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Ej. Nro. de aprobación o referencia bancaria'
+            }),
+        }
+
+    def clean_comprobante(self):
+        archivo = self.cleaned_data.get('comprobante')
+        if not archivo:
+            raise forms.ValidationError("Debes adjuntar el archivo de tu comprobante de pago.")
+        return archivo

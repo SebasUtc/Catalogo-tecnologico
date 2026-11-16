@@ -11,10 +11,11 @@ El desarrollo se organiza en Sprints iterativos e incrementales:
 
 - **Sprint 1 (En curso - Historias de Usuario completadas):**
   - **HU 1:** Catálogo de productos, ficha técnica, precios, cálculo de anticipos y filtros por marca y categoría.
-  - **HU 2:** Solicitud de reserva para apartar cupo en el lote: cálculo de anticipo según cantidad, visualización de cuentas bancarias de la tienda y creación de la reserva en estado **Pendiente de Pago**.
-- **Sprint 2 (Próximo):** Carga y validación del comprobante de transferencia bancaria por parte del cliente y confirmación de apartado por el vendedor.
-- **Sprint 3:** Panel del vendedor para gestión de lotes y validación de comprobantes.
-- **Sprint 4:** Liquidación de saldo restante y entrega física del equipo en tienda.
+  - **HU 2:** Solicitud de reserva para apartar cupo en el lote: cálculo de anticipo según cantidad, visualización de cuentas bancarias y estado **Pendiente de Pago**.
+  - **HU 3:** Carga del comprobante de anticipo en formatos JPG, PNG o PDF con cambio de estado automático a **Comprobante en Revisión**.
+- **Sprint 2 (Próximo):** Panel y flujo del vendedor para validar el comprobante bancario y confirmar formalmente el cupo en bodega.
+- **Sprint 3:** Gestión de lotes, alertas de vencimiento de reservas y liberación automática de cupos impagos.
+- **Sprint 4:** Liquidación de saldo restante en tienda física y entrega del equipo.
 
 ---
 
@@ -26,10 +27,14 @@ El desarrollo se organiza en Sprints iterativos e incrementales:
 
 ### 📌 Historia de Usuario 2 (HU 2)
 > *"Como cliente, quiero solicitar una reserva para apartar cupo en el lote."*
+> - **Criterios de Aceptación:** Calcula anticipo, muestra cuentas y crea reserva en Pendiente de Pago.
+
+### 📌 Historia de Usuario 3 (HU 3)
+> *"Como cliente, quiero subir el comprobante de anticipo para registrar el pago."*
 > - **Criterios de Aceptación Cumplidos:**
->   - [x] **Calcula anticipo:** Multiplica el anticipo unitario por la cantidad solicitada con recálculo dinámico e interactivo en tiempo real y validación en servidor.
->   - [x] **Muestra cuentas:** Presenta las cuentas bancarias autorizadas de la tienda (banco, tipo, número de cuenta con botón para copiar, titular, documento e instrucciones de pago).
->   - [x] **Crea reserva en "Pendiente de Pago":** Asigna automáticamente el código único (ej. `RES-2026-X8K29`), aparta provisionalmente el cupo del lote (descontando del inventario disponible) y registra el estado inicial `PENDIENTE_PAGO`.
+>   - [x] **Permite adjuntar JPG/PNG/PDF:** Validador estricto que acepta únicamente formatos de imagen (JPG, JPEG, PNG) o documentos PDF de comprobantes bancarios, rechazando ejecutables u otros formatos no autorizados (límite: 10 MB).
+>   - [x] **Pasa a Comprobante en Revisión:** Al subir el comprobante, el estado de la reserva transiciona automáticamente de `PENDIENTE_PAGO` a `COMPROBANTE_REVISION` (*"Comprobante en Revisión"*).
+>   - [x] **Seguimiento visual y administración:** La interfaz del cliente muestra la previsualización del comprobante (visor de imagen o botón de apertura de PDF) y en el panel de administración de vendedores se habilita el acceso directo al archivo junto con la fecha y hora exacta del envío.
 
 ---
 

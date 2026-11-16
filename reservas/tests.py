@@ -1,4 +1,5 @@
 from decimal import Decimal
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase
 from django.urls import reverse
 from productos.models import Categoria, Marca, Producto
@@ -7,10 +8,11 @@ from reservas.models import CuentaBancaria, Reserva
 
 class SolicitudReservaTests(TestCase):
     """
-    Suite de pruebas para HU 2:
-    'Como cliente, quiero solicitar una reserva para apartar cupo en el lote.'
-    Criterio de aceptación:
-    'Calcula anticipo, muestra cuentas y crea reserva en Pendiente de Pago.'
+    Suite de pruebas para HU 2 y HU 3:
+    - HU 2: 'Como cliente, quiero solicitar una reserva para apartar cupo en el lote.'
+      Criterio: 'Calcula anticipo, muestra cuentas y crea reserva en Pendiente de Pago.'
+    - HU 3: 'Como cliente, quiero subir el comprobante de anticipo para registrar el pago.'
+      Criterio: 'Permite adjuntar JPG/PNG/PDF. Pasa a Comprobante en Revisión.'
     """
 
     def setUp(self):
@@ -72,7 +74,7 @@ class SolicitudReservaTests(TestCase):
 
     def test_creacion_reserva_calcula_anticipo_y_asigna_pendiente_de_pago(self):
         """
-        Verifica la condición clave:
+        Verifica la condición clave de HU 2:
         'Calcula anticipo, muestra cuentas y crea reserva en Pendiente de Pago.'
         """
         datos = {
@@ -195,3 +197,197 @@ class SolicitudReservaTests(TestCase):
 
         response = self.client.get(reverse('reservas:consultar'), {'codigo': reserva.codigo})
         self.assertRedirects(response, reverse('reservas:resumen', kwargs={'codigo': reserva.codigo}))
+
+    # --- PRUEBAS HU 3: SUBIDA DE COMPROBANTE Y CAMBIO DE ESTADO ---
+
+    def test_subir_comprobante_jpg_pasa_a_comprobante_en_revision(self):
+        """
+        Criterio HU 3: 'Permite adjuntar JPG/PNG/PDF. Pasa a Comprobante en Revisión.'
+        Prueba con archivo JPG.
+        """
+        reserva = Reserva.objects.create(
+            producto=self.producto,
+            cantidad=1,
+            precio_unitario=Decimal("2000.00"),
+            precio_total=Decimal("2000.00"),
+            monto_anticipo=Decimal("400.00"),
+            saldo_en_tienda=Decimal("1600.00"),
+            nombre_cliente="Cliente JPG",
+            email_cliente="jpg@test.com",
+            telefono_cliente="123456",
+            documento_identidad="CC 111111",
+            estado=Reserva.ESTADO_PENDIENTE_PAGO
+        )
+
+        archivo_jpg = SimpleUploadedFile(
+            "recibo_pago.jpg",
+            b"\xff\xd8\xff\xe0\x00\x10JFIFfakejpgdata",
+            content_type="image/jpeg"
+        )
+
+        response = self.client.post(
+            reverse('reservas:subir_comprobante', kwargs={'codigo': reserva.codigo}),
+            data={
+                'comprobante': archivo_jpg,
+                'banco_origen': 'Banco Pichincha',
+                'numero_transaccion': 'TRX-998877'
+            }
+        )
+
+        self.assertRedirects(response, reverse('reservas:resumen', kwargs={'codigo': reserva.codigo}))
+
+        reserva.refresh_from_db()
+        # Condición: Pasa a Comprobante en Revisión
+        self.assertEqual(reserva.estado, Reserva.ESTADO_COMPROBANTE_REVISION)
+        self.assertEqual(reserva.get_estado_display(), 'Comprobante en Revisión')
+        self.assertTrue(bool(reserva.comprobante))
+        self.assertTrue(reserva.es_imagen_comprobante)
+        self.assertEqual(reserva.banco_origen, 'Banco Pichincha')
+        self.assertEqual(reserva.numero_transaccion, 'TRX-998877')
+        self.assertIsNotNone(reserva.fecha_subida_comprobante)
+
+    def test_subir_comprobante_png_pasa_a_comprobante_en_revision(self):
+        """
+        Criterio HU 3: Permite adjuntar PNG y pasa a Comprobante en Revisión.
+        """
+        reserva = Reserva.objects.create(
+            producto=self.producto,
+            cantidad=1,
+            precio_unitario=Decimal("2000.00"),
+            precio_total=Decimal("2000.00"),
+            monto_anticipo=Decimal("400.00"),
+            saldo_en_tienda=Decimal("1600.00"),
+            nombre_cliente="Cliente PNG",
+            email_cliente="png@test.com",
+            telefono_cliente="222222",
+            documento_identidad="CC 222222",
+            estado=Reserva.ESTADO_PENDIENTE_PAGO
+        )
+
+        archivo_png = SimpleUploadedFile(
+            "transferencia.png",
+            b"\x89PNG\r\n\x1a\nfakepngdata",
+            content_type="image/png"
+        )
+
+        response = self.client.post(
+            reverse('reservas:subir_comprobante', kwargs={'codigo': reserva.codigo}),
+            data={'comprobante': archivo_png}
+        )
+        self.assertRedirects(response, reverse('reservas:resumen', kwargs={'codigo': reserva.codigo}))
+
+        reserva.refresh_from_db()
+        self.assertEqual(reserva.estado, Reserva.ESTADO_COMPROBANTE_REVISION)
+        self.assertEqual(reserva.get_estado_display(), 'Comprobante en Revisión')
+        self.assertTrue(reserva.es_imagen_comprobante)
+
+    def test_subir_comprobante_pdf_pasa_a_comprobante_en_revision(self):
+        """
+        Criterio HU 3: Permite adjuntar PDF y pasa a Comprobante en Revisión.
+        """
+        reserva = Reserva.objects.create(
+            producto=self.producto,
+            cantidad=1,
+            precio_unitario=Decimal("2000.00"),
+            precio_total=Decimal("2000.00"),
+            monto_anticipo=Decimal("400.00"),
+            saldo_en_tienda=Decimal("1600.00"),
+            nombre_cliente="Cliente PDF",
+            email_cliente="pdf@test.com",
+            telefono_cliente="333333",
+            documento_identidad="CC 333333",
+            estado=Reserva.ESTADO_PENDIENTE_PAGO
+        )
+
+        archivo_pdf = SimpleUploadedFile(
+            "comprobante_bancario.pdf",
+            b"%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>%%EOF",
+            content_type="application/pdf"
+        )
+
+        response = self.client.post(
+            reverse('reservas:subir_comprobante', kwargs={'codigo': reserva.codigo}),
+            data={'comprobante': archivo_pdf}
+        )
+        self.assertRedirects(response, reverse('reservas:resumen', kwargs={'codigo': reserva.codigo}))
+
+        reserva.refresh_from_db()
+        self.assertEqual(reserva.estado, Reserva.ESTADO_COMPROBANTE_REVISION)
+        self.assertEqual(reserva.get_estado_display(), 'Comprobante en Revisión')
+        self.assertTrue(reserva.es_pdf_comprobante)
+
+    def test_subir_comprobante_formato_no_permitido_rechazado(self):
+        """
+        Verifica que solo se permitan formatos JPG, PNG o PDF.
+        Archivos como .exe, .txt o .zip deben ser rechazados.
+        """
+        reserva = Reserva.objects.create(
+            producto=self.producto,
+            cantidad=1,
+            precio_unitario=Decimal("2000.00"),
+            precio_total=Decimal("2000.00"),
+            monto_anticipo=Decimal("400.00"),
+            saldo_en_tienda=Decimal("1600.00"),
+            nombre_cliente="Cliente Invalido",
+            email_cliente="invalido@test.com",
+            telefono_cliente="444444",
+            documento_identidad="CC 444444",
+            estado=Reserva.ESTADO_PENDIENTE_PAGO
+        )
+
+        archivo_invalido = SimpleUploadedFile(
+            "archivo_malicioso.exe",
+            b"fake exe executable payload",
+            content_type="application/octet-stream"
+        )
+
+        response = self.client.post(
+            reverse('reservas:subir_comprobante', kwargs={'codigo': reserva.codigo}),
+            data={'comprobante': archivo_invalido}
+        )
+
+        # No debe redirigir al resumen exitoso, sino renderizar el formulario con error
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Solo se aceptan archivos JPG, JPEG, PNG o PDF")
+
+        reserva.refresh_from_db()
+        # Debe mantenerse en Pendiente de Pago
+        self.assertEqual(reserva.estado, Reserva.ESTADO_PENDIENTE_PAGO)
+        self.assertFalse(bool(reserva.comprobante))
+
+    def test_vista_resumen_refleja_comprobante_en_revision(self):
+        """
+        Verifica que la página de resumen muestre el estado 'Comprobante en Revisión'
+        y el enlace o vista previa del archivo cargado.
+        """
+        archivo_jpg = SimpleUploadedFile(
+            "recibo.jpg",
+            b"\xff\xd8\xff\xe0\x00\x10JFIFfakejpgdata",
+            content_type="image/jpeg"
+        )
+
+        reserva = Reserva.objects.create(
+            producto=self.producto,
+            cantidad=1,
+            precio_unitario=Decimal("2000.00"),
+            precio_total=Decimal("2000.00"),
+            monto_anticipo=Decimal("400.00"),
+            saldo_en_tienda=Decimal("1600.00"),
+            nombre_cliente="Cliente Verificado",
+            email_cliente="verificado@test.com",
+            telefono_cliente="555555",
+            documento_identidad="CC 555555",
+            estado=Reserva.ESTADO_COMPROBANTE_REVISION,
+            comprobante=archivo_jpg,
+            banco_origen="Bancolombia",
+            numero_transaccion="REF-12345"
+        )
+
+        response = self.client.get(reverse('reservas:resumen', kwargs={'codigo': reserva.codigo}))
+        self.assertEqual(response.status_code, 200)
+
+        # Debe mostrar el nuevo estado
+        self.assertContains(response, "Comprobante en Revisión")
+        self.assertContains(response, "Bancolombia")
+        self.assertContains(response, "REF-12345")
+        self.assertContains(response, "Ver Imagen Completa")

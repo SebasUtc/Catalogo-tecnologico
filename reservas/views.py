@@ -2,8 +2,9 @@ from decimal import Decimal
 from django.contrib import messages
 from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 from productos.models import Producto
-from .forms import SolicitudReservaForm
+from .forms import SolicitudReservaForm, SubirComprobanteForm
 from .models import CuentaBancaria, Reserva
 
 
@@ -73,21 +74,65 @@ def solicitar_reserva_view(request, slug):
 def resumen_reserva_view(request, codigo):
     """
     Vista de confirmación y resumen de la reserva:
-    - Muestra el estado actual ('Pendiente de Pago').
-    - Muestra el desglose financiero (Total, Anticipo a transferir, Saldo en tienda).
-    - Muestra las cuentas bancarias de la tienda para que el cliente realice la transferencia.
+    - Muestra el estado actual ('Pendiente de Pago' o 'Comprobante en Revisión').
+    - Muestra el desglose financiero (Total, Anticipo, Saldo en tienda).
+    - Muestra las cuentas bancarias autorizadas.
+    - Incluye formulario para subir comprobante de anticipo (HU 3).
     """
     reserva = get_object_or_404(
         Reserva.objects.select_related('producto', 'producto__marca', 'producto__categoria'),
         codigo=codigo
     )
     cuentas = CuentaBancaria.objects.filter(activo=True)
+    form_comprobante = SubirComprobanteForm(instance=reserva)
 
     context = {
         'reserva': reserva,
         'cuentas': cuentas,
+        'form_comprobante': form_comprobante,
     }
     return render(request, 'reservas/resumen.html', context)
+
+
+def subir_comprobante_view(request, codigo):
+    """
+    HU 3: Como cliente, quiero subir el comprobante de anticipo para registrar el pago.
+    Condición: 'Permite adjuntar JPG/PNG/PDF. Pasa a Comprobante en Revisión.'
+    """
+    reserva = get_object_or_404(
+        Reserva.objects.select_related('producto', 'producto__marca'),
+        codigo=codigo
+    )
+
+    if request.method == 'POST':
+        form = SubirComprobanteForm(request.POST, request.FILES, instance=reserva)
+        if form.is_valid():
+            reserva = form.save(commit=False)
+            
+            # Criterio clave HU 3: Pasa a Comprobante en Revisión
+            reserva.estado = Reserva.ESTADO_COMPROBANTE_REVISION
+            reserva.fecha_subida_comprobante = timezone.now()
+            reserva.save()
+
+            messages.success(
+                request,
+                f"¡Comprobante adjuntado con éxito! Tu reserva {reserva.codigo} ha pasado a estado 'Comprobante en Revisión'. "
+                f"Un asesor de nuestro centro tecnológico verificará el anticipo para confirmar tu cupo."
+            )
+            return redirect('reservas:resumen', codigo=reserva.codigo)
+        else:
+            cuentas = CuentaBancaria.objects.filter(activo=True)
+            messages.error(
+                request,
+                "No fue posible adjuntar el comprobante. Verifica que el archivo sea JPG, PNG o PDF (máx. 10 MB)."
+            )
+            return render(request, 'reservas/resumen.html', {
+                'reserva': reserva,
+                'cuentas': cuentas,
+                'form_comprobante': form,
+            })
+
+    return redirect('reservas:resumen', codigo=reserva.codigo)
 
 
 def consultar_reserva_view(request):

@@ -16,6 +16,7 @@ class ReservaAdmin(admin.ModelAdmin):
     list_display = (
         "codigo",
         "estado",
+        "comprobante_link",
         "nombre_cliente",
         "telefono_cliente",
         "producto",
@@ -24,16 +25,35 @@ class ReservaAdmin(admin.ModelAdmin):
         "anticipo_formateado",
         "saldo_formateado",
         "fecha_creacion",
-        "fecha_limite_pago",
+        "fecha_subida_comprobante",
     )
-    list_filter = ("estado", "fecha_creacion", "producto__categoria", "producto__marca")
-    search_fields = ("codigo", "nombre_cliente", "email_cliente", "telefono_cliente", "documento_identidad", "producto__nombre", "producto__sku")
-    readonly_fields = ("codigo", "fecha_creacion", "fecha_actualizacion")
+    list_filter = ("estado", "fecha_creacion", "fecha_subida_comprobante", "producto__categoria", "producto__marca")
+    search_fields = (
+        "codigo",
+        "nombre_cliente",
+        "email_cliente",
+        "telefono_cliente",
+        "documento_identidad",
+        "numero_transaccion",
+        "producto__nombre",
+        "producto__sku"
+    )
+    readonly_fields = ("codigo", "fecha_creacion", "fecha_actualizacion", "vista_comprobante")
     list_editable = ("estado",)
 
     fieldsets = (
         ("Identificación de Reserva", {
             "fields": ("codigo", "estado", "fecha_creacion", "fecha_limite_pago")
+        }),
+        ("Comprobante de Pago de Anticipo (HU 3)", {
+            "fields": (
+                "comprobante",
+                "vista_comprobante",
+                "numero_transaccion",
+                "banco_origen",
+                "fecha_subida_comprobante"
+            ),
+            "description": "Comprobante adjuntado por el cliente en formato JPG, PNG o PDF."
         }),
         ("Datos del Cliente", {
             "fields": ("nombre_cliente", "documento_identidad", "email_cliente", "telefono_cliente", "notas")
@@ -46,21 +66,35 @@ class ReservaAdmin(admin.ModelAdmin):
         }),
     )
 
-    def badge_estado(self, obj):
-        colores = {
-            Reserva.ESTADO_PENDIENTE_PAGO: "#f59e0b",       # Ámbar
-            Reserva.ESTADO_COMPROBANTE_SUBIDO: "#3b82f6",   # Azul
-            Reserva.ESTADO_CONFIRMADA: "#10b981",           # Verde
-            Reserva.ESTADO_ENTREGADA: "#6366f1",            # Indigo
-            Reserva.ESTADO_CANCELADA: "#ef4444",            # Rojo
-        }
-        color = colores.get(obj.estado, "#6b7280")
-        return format_html(
-            '<span style="background-color: {}; color: white; padding: 4px 10px; border-radius: 6px; font-weight: bold; font-size: 0.8rem;">{}</span>',
-            color,
-            obj.get_estado_display()
-        )
-    badge_estado.short_description = "Estado"
+    def comprobante_link(self, obj):
+        if obj.comprobante:
+            if obj.es_pdf_comprobante:
+                return format_html(
+                    '<a href="{}" target="_blank" style="color: #dc2626; font-weight: bold;">📄 Ver PDF</a>',
+                    obj.comprobante.url
+                )
+            return format_html(
+                '<a href="{}" target="_blank"><img src="{}" style="width: 32px; height: 32px; object-fit: cover; border-radius: 4px; vertical-align: middle; margin-right: 4px;" /> Ver Foto</a>',
+                obj.comprobante.url,
+                obj.comprobante.url
+            )
+        return format_html('<span style="color: #94a3b8;">Sin adjunto</span>')
+    comprobante_link.short_description = "Comprobante"
+
+    def vista_comprobante(self, obj):
+        if obj.comprobante:
+            if obj.es_pdf_comprobante:
+                return format_html(
+                    '<a href="{}" target="_blank" class="button" style="padding: 6px 12px; background: #dc2626; color: white; border-radius: 4px; text-decoration: none;">📄 Abrir Documento PDF del Comprobante</a>',
+                    obj.comprobante.url
+                )
+            return format_html(
+                '<a href="{}" target="_blank"><img src="{}" style="max-width: 300px; max-height: 250px; border-radius: 8px; border: 1px solid #ccc; display: block; margin-top: 5px;" /></a>',
+                obj.comprobante.url,
+                obj.comprobante.url
+            )
+        return "No se ha adjuntado ningún comprobante todavía."
+    vista_comprobante.short_description = "Vista Previa del Comprobante"
 
     def precio_total_formateado(self, obj):
         return f"${obj.precio_total:,.2f}"
