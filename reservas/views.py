@@ -10,6 +10,7 @@ from .forms import SolicitudReservaForm, SubirComprobanteForm
 from .models import CuentaBancaria, Reserva
 
 
+# Procesa la solicitud de reserva y aparta las unidades solicitadas.
 def solicitar_reserva_view(request, slug):
     """
     HU 2: Solicitar reserva para apartar cupo en el lote.
@@ -73,6 +74,7 @@ def solicitar_reserva_view(request, slug):
     return render(request, 'reservas/solicitar.html', context)
 
 
+# Muestra los datos, el estado y las opciones de comprobante de una reserva.
 def resumen_reserva_view(request, codigo):
     """
     Vista de confirmación y resumen de la reserva para el cliente:
@@ -96,6 +98,7 @@ def resumen_reserva_view(request, codigo):
     return render(request, 'reservas/resumen.html', context)
 
 
+# Recibe el comprobante del cliente y actualiza la reserva para su revisión.
 def subir_comprobante_view(request, codigo):
     """
     HU 3: Como cliente, quiero subir el comprobante de anticipo para registrar el pago.
@@ -137,6 +140,7 @@ def subir_comprobante_view(request, codigo):
     return redirect('reservas:resumen', codigo=reserva.codigo)
 
 
+# Busca una reserva por código y redirige a su resumen cuando existe.
 def consultar_reserva_view(request):
     """
     Permite al cliente buscar y revisar el estado de su reserva mediante su código.
@@ -159,6 +163,7 @@ def consultar_reserva_view(request):
 # HU 4: PANEL DEL GESTOR FINANCIERO (VALIDACIÓN DE COMPROBANTES DE ABONO)
 # ==============================================================================
 
+# Presenta las reservas, métricas y filtros para la gestión financiera.
 @staff_member_required(login_url='/admin/login/?next=/reservas/panel-financiero/')
 def panel_financiero_view(request):
     """
@@ -216,6 +221,7 @@ def panel_financiero_view(request):
     return render(request, 'reservas/panel_financiero.html', context)
 
 
+# Confirma el abono de una reserva cuando el gestor envía la aprobación.
 @staff_member_required(login_url='/admin/login/?next=/reservas/panel-financiero/')
 def aprobar_reserva_view(request, codigo):
     """
@@ -234,6 +240,7 @@ def aprobar_reserva_view(request, codigo):
     return redirect('reservas:panel_financiero')
 
 
+# Registra el motivo de rechazo del comprobante enviado por el gestor.
 @staff_member_required(login_url='/admin/login/?next=/reservas/panel-financiero/')
 def rechazar_reserva_view(request, codigo):
     """

@@ -4,6 +4,7 @@ from django.shortcuts import get_object_or_404, render
 from .models import Categoria, Marca, Producto
 
 
+# Muestra el catálogo con búsqueda, filtros, ordenamiento y paginación.
 def catalogo_view(request):
     """
     Vista principal del catálogo para HU 1:
@@ -92,6 +93,7 @@ def catalogo_view(request):
     return render(request, 'productos/catalogo.html', context)
 
 
+# Presenta la ficha completa de un producto y opciones relacionadas.
 def detalle_producto_view(request, slug):
     """
     Vista detallada del producto para evaluar la reserva:
