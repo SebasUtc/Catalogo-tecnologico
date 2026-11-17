@@ -89,6 +89,8 @@ class CatalogoProductosTests(TestCase):
         """
         response = self.client.get(reverse('productos:catalogo'))
         self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "Sprint 1 • HU 1: Catálogo y Evaluación de Anticipos")
+        self.assertContains(response, "Catálogo de Equipos y Reservas")
 
         # SKU
         self.assertContains(response, "LAP-ASUS-001")
