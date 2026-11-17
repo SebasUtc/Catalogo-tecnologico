@@ -23,7 +23,7 @@ El desarrollo se organiza en Sprints iterativos e incrementales:
 
 ### 📌 Historia de Usuario 1 (HU 1)
 > *"Como cliente, quiero ver productos y anticipos para evaluar mi reserva."*
-> - **Criterios de Aceptación:** Muestra foto, SKU, ficha técnica, precio y anticipo. Filtra por marca y por categoría.
+> - **Criterios de Aceptación:** Muestra foto local (almacenada y servida localmente sin consultas a internet), SKU, ficha técnica, precio y anticipo. Filtra por marca y por categoría.
 
 ### 📌 Historia de Usuario 2 (HU 2)
 > *"Como cliente, quiero solicitar una reserva para apartar cupo en el lote."*

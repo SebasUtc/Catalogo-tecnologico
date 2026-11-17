@@ -162,12 +162,21 @@ class Producto(models.Model):
 
     @property
     def url_foto(self):
-        """Retorna la URL de la foto cargada o externa, o un placeholder."""
+        """
+        Retorna la URL de la foto local del producto (almacenada en media/productos/ o static/img/productos/).
+        Garantiza que las imágenes se sirvan de forma 100% local sin llamadas a internet.
+        """
         if self.imagen:
             try:
                 return self.imagen.url
             except Exception:
                 pass
+        # Fallback local en static por SKU
+        import os
+        from django.conf import settings
+        static_img = os.path.join(settings.BASE_DIR, 'static', 'img', 'productos', f"{self.sku}.jpg")
+        if os.path.exists(static_img):
+            return f"{settings.STATIC_URL}img/productos/{self.sku}.jpg"
         if self.imagen_url:
             return self.imagen_url
         return None

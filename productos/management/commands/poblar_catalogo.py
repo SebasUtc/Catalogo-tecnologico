@@ -1,16 +1,24 @@
+import os
+import shutil
 from decimal import Decimal
+from django.conf import settings
 from django.core.management.base import BaseCommand
 from productos.models import Categoria, Marca, Producto
 from reservas.models import CuentaBancaria
 
 
 class Command(BaseCommand):
-    help = "Puebla la base de datos con categorías, marcas y productos tecnológicos iniciales para pruebas del Sprint 1"
+    help = "Puebla la base de datos con categorías, marcas, cuentas bancarias y productos con fotos 100% locales"
 
     def handle(self, *args, **options):
         self.stdout.write(self.style.NOTICE("Iniciando carga de datos de prueba para el Catálogo Tecnológico..."))
 
-        # 1. Categorías
+        # 1. Asegurar directorios de imágenes locales
+        media_productos_dir = os.path.join(settings.MEDIA_ROOT, 'productos')
+        static_productos_dir = os.path.join(settings.BASE_DIR, 'static', 'img', 'productos')
+        os.makedirs(media_productos_dir, exist_ok=True)
+
+        # 2. Categorías
         categorias_data = [
             {"nombre": "Laptops & Portátiles", "slug": "laptops", "icono": "bi-laptop", "descripcion": "Laptops gamer, ultrabooks y estaciones de trabajo portátiles."},
             {"nombre": "Smartphones & Móviles", "slug": "smartphones", "icono": "bi-phone", "descripcion": "Smartphones de alta gama, cámaras avanzadas y conectividad 5G."},
@@ -34,7 +42,7 @@ class Command(BaseCommand):
             categorias_map[c["slug"]] = obj
         self.stdout.write(self.style.SUCCESS(f"✓ {len(categorias_map)} Categorías creadas/actualizadas"))
 
-        # 2. Marcas
+        # 3. Marcas
         marcas_data = [
             {"nombre": "Apple", "slug": "apple", "descripcion": "Ecosistema premium iOS y macOS."},
             {"nombre": "ASUS ROG", "slug": "asus-rog", "descripcion": "Línea gamer de alto rendimiento Republic of Gamers."},
@@ -57,7 +65,7 @@ class Command(BaseCommand):
             marcas_map[m["slug"]] = obj
         self.stdout.write(self.style.SUCCESS(f"✓ {len(marcas_map)} Marcas creadas/actualizadas"))
 
-        # 3. Productos con fotos, SKU, ficha técnica estructurada, precio y anticipo
+        # 4. Productos con fotos locales, SKU, ficha técnica estructurada, precio y anticipo
         productos_data = [
             {
                 "sku": "LAP-ASUS-G16-4070",
@@ -81,7 +89,8 @@ class Command(BaseCommand):
                 "porcentaje_anticipo": Decimal("20.00"),
                 "stock_disponible": 4,
                 "destacado": True,
-                "imagen_url": "https://images.unsplash.com/photo-1603302576837-37561b2e2302?auto=format&fit=crop&w=800&q=80",
+                "imagen": "productos/LAP-ASUS-G16-4070.jpg",
+                "imagen_url": None,
             },
             {
                 "sku": "LAP-MBP-14-M3P",
@@ -105,7 +114,8 @@ class Command(BaseCommand):
                 "porcentaje_anticipo": Decimal("25.00"),
                 "stock_disponible": 6,
                 "destacado": True,
-                "imagen_url": "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=800&q=80",
+                "imagen": "productos/LAP-MBP-14-M3P.jpg",
+                "imagen_url": None,
             },
             {
                 "sku": "PHN-IP15-PM-256",
@@ -129,7 +139,8 @@ class Command(BaseCommand):
                 "porcentaje_anticipo": Decimal("20.00"),
                 "stock_disponible": 8,
                 "destacado": True,
-                "imagen_url": "https://images.unsplash.com/photo-1695048133142-1a20484d2569?auto=format&fit=crop&w=800&q=80",
+                "imagen": "productos/PHN-IP15-PM-256.jpg",
+                "imagen_url": None,
             },
             {
                 "sku": "PHN-S24-ULTRA-512",
@@ -152,7 +163,8 @@ class Command(BaseCommand):
                 "porcentaje_anticipo": Decimal("15.00"),
                 "stock_disponible": 5,
                 "destacado": False,
-                "imagen_url": "https://images.unsplash.com/photo-1610945265064-0e34e5519bbf?auto=format&fit=crop&w=800&q=80",
+                "imagen": "productos/PHN-S24-ULTRA-512.jpg",
+                "imagen_url": None,
             },
             {
                 "sku": "CNS-PS5-SLIM-1TB",
@@ -175,7 +187,8 @@ class Command(BaseCommand):
                 "porcentaje_anticipo": Decimal("20.00"),
                 "stock_disponible": 10,
                 "destacado": True,
-                "imagen_url": "https://images.unsplash.com/photo-1606813907291-d86efa9b94db?auto=format&fit=crop&w=800&q=80",
+                "imagen": "productos/CNS-PS5-SLIM-1TB.jpg",
+                "imagen_url": None,
             },
             {
                 "sku": "AUD-SONY-WH1000XM5",
@@ -197,7 +210,8 @@ class Command(BaseCommand):
                 "porcentaje_anticipo": Decimal("20.00"),
                 "stock_disponible": 12,
                 "destacado": False,
-                "imagen_url": "https://images.unsplash.com/photo-1546435770-a3e426bf472b?auto=format&fit=crop&w=800&q=80",
+                "imagen": "productos/AUD-SONY-WH1000XM5.jpg",
+                "imagen_url": None,
             },
             {
                 "sku": "TAB-IPA-AIR-M2",
@@ -219,7 +233,8 @@ class Command(BaseCommand):
                 "porcentaje_anticipo": Decimal("20.00"),
                 "stock_disponible": 7,
                 "destacado": False,
-                "imagen_url": "https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?auto=format&fit=crop&w=800&q=80",
+                "imagen": "productos/TAB-IPA-AIR-M2.jpg",
+                "imagen_url": None,
             },
             {
                 "sku": "PER-LOG-GPRO-X2",
@@ -240,7 +255,8 @@ class Command(BaseCommand):
                 "porcentaje_anticipo": Decimal("20.00"),
                 "stock_disponible": 15,
                 "destacado": False,
-                "imagen_url": "https://images.unsplash.com/photo-1615663245857-ac93bb7c39e7?auto=format&fit=crop&w=800&q=80",
+                "imagen": "productos/PER-LOG-GPRO-X2.jpg",
+                "imagen_url": None,
             },
             {
                 "sku": "LAP-LEN-LEG-PRO7",
@@ -262,19 +278,30 @@ class Command(BaseCommand):
                 "porcentaje_anticipo": Decimal("20.00"),
                 "stock_disponible": 3,
                 "destacado": True,
-                "imagen_url": "https://images.unsplash.com/photo-1593642632823-8f785ba67e45?auto=format&fit=crop&w=800&q=80",
+                "imagen": "productos/LAP-LEN-LEG-PRO7.jpg",
+                "imagen_url": None,
             },
         ]
 
         for prod_data in productos_data:
+            sku = prod_data["sku"]
+            img_filename = f"{sku}.jpg"
+            src_static = os.path.join(static_productos_dir, img_filename)
+            dest_media = os.path.join(media_productos_dir, img_filename)
+
+            # Si el archivo está en static y no en media, copiarlo localmente
+            if os.path.exists(src_static) and not os.path.exists(dest_media):
+                shutil.copy2(src_static, dest_media)
+
             obj, created = Producto.objects.update_or_create(
                 sku=prod_data["sku"],
                 defaults=prod_data
             )
             accion = "Creado" if created else "Actualizado"
-            self.stdout.write(f"  • [{obj.sku}] {obj.nombre} ({accion}) - Anticipo: ${obj.anticipo_requerido}")
+            foto_origen = obj.url_foto or "Sin foto"
+            self.stdout.write(f"  • [{obj.sku}] {obj.nombre} ({accion}) - Foto Local: {foto_origen}")
 
-        # 4. Cuentas Bancarias de la Tienda (Requisito HU 2: "Muestra cuentas")
+        # 5. Cuentas Bancarias de la Tienda
         cuentas_data = [
             {
                 "banco": "Banco Nacional / Central",
@@ -315,4 +342,4 @@ class Command(BaseCommand):
             )
             self.stdout.write(f"  • Cuenta habilitada: {c_obj.banco} ({c_obj.numero_cuenta})")
 
-        self.stdout.write(self.style.SUCCESS(f"\n¡Éxito! Se han cargado {len(productos_data)} productos tecnológicos y {len(cuentas_data)} cuentas bancarias autorizadas."))
+        self.stdout.write(self.style.SUCCESS(f"\n¡Éxito! Se han cargado {len(productos_data)} productos con imágenes 100% locales y {len(cuentas_data)} cuentas bancarias."))

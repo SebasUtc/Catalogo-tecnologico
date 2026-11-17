@@ -28,7 +28,7 @@ class CatalogoProductosTests(TestCase):
         self.marca_asus = Marca.objects.create(nombre="ASUS", slug="asus")
         self.marca_apple = Marca.objects.create(nombre="Apple", slug="apple")
 
-        # Producto 1: Con porcentaje de anticipo (20%)
+        # Producto 1: Con porcentaje de anticipo (20%) y foto local
         self.prod_asus = Producto.objects.create(
             sku="LAP-ASUS-001",
             nombre="Laptop ASUS ROG Strix",
@@ -42,7 +42,7 @@ class CatalogoProductosTests(TestCase):
             stock_disponible=5,
             activo=True,
             destacado=True,
-            imagen_url="https://example.com/asus.jpg"
+            imagen="productos/LAP-ASUS-001.jpg"
         )
 
         # Producto 2: Con monto fijo de anticipo ($300.00)
@@ -96,8 +96,8 @@ class CatalogoProductosTests(TestCase):
         self.assertContains(response, "LAP-ASUS-001")
         self.assertContains(response, "PHN-APL-002")
 
-        # Foto / URL
-        self.assertContains(response, "https://example.com/asus.jpg")
+        # Foto local
+        self.assertContains(response, "/media/productos/LAP-ASUS-001.jpg")
 
         # Ficha / Resumen
         self.assertContains(response, "Laptop gamer de alto rendimiento")
